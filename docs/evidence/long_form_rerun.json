@@ -1,0 +1,54 @@
+{
+  "converter_code_sha256": "34b3f61a49b68a3c8cf9d800fdf15dbf46ed168fc06d9910fd83abcd5f9cf5ff",
+  "run_id": "5fc110f00d93db4dad56ef54613fc9ccb2d35e7595ed45e50e3cd019ef9d2b1c",
+  "reused_conversion": true,
+  "all_rows_keys_values_identical": true,
+  "ready_for_source_tables": true,
+  "ready_for_cross_source_analysis": false,
+  "sources_passed": 9,
+  "duplicate_keys": 0,
+  "reconciliation_checks": 55393,
+  "failed_reconciliation_checks": 0,
+  "datasets": {
+    "agency_summary": {
+      "rows": 4338,
+      "ordered_rows_sha256": "6c04e09a5c5caade35d785b6be2237a40954bd7f2ebc16d70ec97d16d4a8c77f"
+    },
+    "agency_detail_candidates": {
+      "rows": 236830,
+      "ordered_rows_sha256": "f12275d7250b2d6dcda5acb74fefaa7ac610cf06b6c7e237e8313ea3bc325b7a"
+    },
+    "approved_budget": {
+      "rows": 1077957,
+      "ordered_rows_sha256": "0fd6ed601cccaed29b0c4c2819f9dbbd4a9b12f30c5333961db563b7db957a58"
+    },
+    "approved_budget_controls": {
+      "rows": 2,
+      "ordered_rows_sha256": "8d2a6fa8fd0c2dda2468c9d89a435b7418c843a28acfeff5b257d717c7f684f9"
+    },
+    "sector_expenditure": {
+      "rows": 8899,
+      "ordered_rows_sha256": "bb66cc6e42553aee9e2d7539efda543a32131c3d5b7e96b5a354057fe27746ae"
+    },
+    "regional_actuals": {
+      "rows": 1785,
+      "ordered_rows_sha256": "1026f369adb5dad33e3ece7bfe60f33c46a492686c630e34df580acc185a759f"
+    },
+    "population_projection": {
+      "rows": 159207,
+      "ordered_rows_sha256": "53c3dd553e5cfcffa29cf1a21fc294b3d2abfc5dae852d27fb3609f8f83795dd"
+    },
+    "population_growth": {
+      "rows": 54,
+      "ordered_rows_sha256": "fb2c82a5fc3c8edfc20d26c8b417a2aee7f517cf68d3ebe5c777e87832f9bcd6"
+    },
+    "development_indicator": {
+      "rows": 304,
+      "ordered_rows_sha256": "348528c86f78af70c1f6d35e62d46da945fe91940dccc5e69dc50e8d301f50ee"
+    },
+    "source_numeric_candidates": {
+      "rows": 435,
+      "ordered_rows_sha256": "82afb3e85fb3c61eaa5f4332ec7c43c6d394a58969603101df21fe9f0f2a69e1"
+    }
+  }
+}

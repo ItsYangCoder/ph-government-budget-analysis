@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pondolens"
-version = "0.1.0"
-description = "Preserve and profile Philippine government budget source files"
+version = "0.2.0"
+description = "Preserve, convert, validate and ingest Philippine government budget source files"
 requires-python = ">=3.11"
 dependencies = ["openpyxl>=3.1.5,<4", "pdfplumber>=0.11.4,<0.12"]
 
@@ -14,6 +14,7 @@ dev = ["pytest>=8,<9"]
 
 [project.scripts]
 pondolens = "pondolens.ingestion:main"
+pondolens-long = "pondolens.long_form:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
