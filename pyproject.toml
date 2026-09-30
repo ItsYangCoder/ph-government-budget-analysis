@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pondolens"
+version = "0.1.0"
+description = "Preserve and profile Philippine government budget source files"
+requires-python = ">=3.11"
+dependencies = ["openpyxl>=3.1.5,<4", "pdfplumber>=0.11.4,<0.12"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+pondolens = "pondolens.ingestion:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

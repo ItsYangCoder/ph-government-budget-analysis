@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# PondoLens local data and runtime outputs
+data/
+outputs/
+*.sqlite*
+.DS_Store
+
