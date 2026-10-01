@@ -223,3 +223,6 @@ outputs/
 *.sqlite*
 .DS_Store
 
+
+# Local extraction archive
+/pondolens-extraction.zip
