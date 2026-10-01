@@ -2,6 +2,12 @@
 
 Source-specific extraction, long-form conversion, validation, and local SQLite ingestion for the supplied FY2024–FY2025 DBM/PSA sources. Originals are preserved. Source datasets and generated outputs are not committed to Git.
 
+## Engineering documentation
+
+Start with the [engineering handoff](docs/pipeline_handoff.md) for current implementation status, tools, ownership, repository organization and decisions. Use the [local runbook](docs/local_runbook.md) for exact setup, execution, verification and recovery; the [source contracts](docs/source_contracts.md) for the nine originals, eighteen CSVs and table grains; and the [architecture plan](docs/pipeline_architecture.md) for local Silver/Gold development and final Databricks integration.
+
+**Official current run path:** original Excel/PDF files → source-specific conversion → source validation → local SQLite snapshot. The active development branch is `dev`. Reviewed mapping application, complete Silver/Gold layers, typed release export and Databricks jobs remain planned work.
+
 ## What this pipeline produces
 
 `pondolens` preserves originals and extracts all nonempty Excel cells/PDF text into structural JSONL. `pondolens-long` creates separate long-form CSV tables, checks business keys and control totals, and loads passing sources into `outputs/long_form.sqlite`.
@@ -14,7 +20,7 @@ If you cloned with Git, open the repository root in VS Code and update the worki
 
 ```bash
 git fetch origin
-git switch feature/ingestion-foundation
+git switch dev
 git pull --ff-only
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
@@ -32,7 +38,7 @@ For a new installation:
 ```bash
 git clone https://github.com/ItsYangCoder/ph-government-budget-analysis.git
 cd ph-government-budget-analysis
-git switch feature/ingestion-foundation
+git switch dev
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
