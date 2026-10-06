@@ -21,3 +21,6 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 
+
+[tool.databricks.environment]
+environment_version = '6'
