@@ -1,0 +1,115 @@
+{
+  "sources": [
+    {
+      "source_id": "agency_2024_detail",
+      "adapter": "excel_cells",
+      "glob": "01_agency_actuals/*2024*.xlsx",
+      "sheet": "By Agency",
+      "headers": [
+        {
+          "cell": "A1",
+          "regex": "FY 2024 STATEMENT"
+        }
+      ],
+      "ranges": [
+        "A1:AJ2709"
+      ],
+      "unit": null,
+      "reporting_period": "See original source headers",
+      "quality_flags": [
+        "raw_cells_not_analytical_model",
+        "units_and_years_preserved_in_source_headers",
+        "financial_reconciliation_not_yet_verified"
+      ]
+    },
+    {
+      "source_id": "agency_2024_sucs",
+      "adapter": "excel_cells",
+      "glob": "01_agency_actuals/*2024*.xlsx",
+      "sheet": "SUCs",
+      "headers": [
+        {
+          "cell": "A1",
+          "regex": "FY 2024 STATEMENT"
+        }
+      ],
+      "ranges": [
+        "A1:AJ1492"
+      ],
+      "unit": null,
+      "reporting_period": "See original source headers",
+      "quality_flags": [
+        "raw_cells_not_analytical_model",
+        "units_and_years_preserved_in_source_headers",
+        "financial_reconciliation_not_yet_verified"
+      ]
+    },
+    {
+      "source_id": "agency_2025_detail",
+      "adapter": "excel_cells",
+      "glob": "01_agency_actuals/*2025*.xlsx",
+      "sheet": "ByAgency",
+      "headers": [
+        {
+          "cell": "A1",
+          "regex": "FY 2025 STATEMENT"
+        }
+      ],
+      "ranges": [
+        "A1:AJ2731"
+      ],
+      "unit": null,
+      "reporting_period": "See original source headers",
+      "quality_flags": [
+        "raw_cells_not_analytical_model",
+        "units_and_years_preserved_in_source_headers",
+        "financial_reconciliation_not_yet_verified"
+      ]
+    },
+    {
+      "source_id": "agency_2025_sucs",
+      "adapter": "excel_cells",
+      "glob": "01_agency_actuals/*2025*.xlsx",
+      "sheet": "SUCs",
+      "headers": [
+        {
+          "cell": "A1",
+          "regex": "FY 2025 STATEMENT"
+        }
+      ],
+      "ranges": [
+        "A1:AJ1503"
+      ],
+      "unit": null,
+      "reporting_period": "See original source headers",
+      "quality_flags": [
+        "raw_cells_not_analytical_model",
+        "units_and_years_preserved_in_source_headers",
+        "financial_reconciliation_not_yet_verified",
+        "conflicting_2024_2025_source_headers"
+      ]
+    },
+    {
+      "source_id": "total_grdp_raw",
+      "adapter": "excel_cells",
+      "glob": "05_development_indicators/01GRDP*.xlsx",
+      "sheet": "GRDP",
+      "headers": [
+        {
+          "cell": "A1",
+          "regex": "Regional Accounts"
+        }
+      ],
+      "ranges": [
+        "A1:E381"
+      ],
+      "unit": null,
+      "reporting_period": "See original source headers",
+      "quality_flags": [
+        "raw_cells_not_analytical_model",
+        "units_and_years_preserved_in_source_headers",
+        "financial_reconciliation_not_yet_verified"
+      ]
+    }
+  ]
+}
