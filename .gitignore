@@ -229,3 +229,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# macOS Finder metadata
+.DS_Store

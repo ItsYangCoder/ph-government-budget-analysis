@@ -7,7 +7,7 @@ sources from the provided dataset folder. Input files are not modified.
 
 - MIA contained only template samples: no sample entry was treated as verified.
   Agency SUMMARY/SUM headers and control cells were checked independently for the
-  limited raw-cell pilot. Agency detail sheets/SUCs remain outside the pilot.
+  initial raw-cell pilot. Agency detail sheets/SUCs were subsequently extracted as raw cells; see verification_status.md.
 - RAZZ documented PDF units, sector hierarchy, source statuses, totals and page
   continuation. The actual PDFs expose repeated row-name text on page 2, including
   text with negative/off-page x coordinates. The regional adapter checks that

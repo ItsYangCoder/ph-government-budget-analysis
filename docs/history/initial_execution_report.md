@@ -1,3 +1,7 @@
+# Initial implementation snapshot — historical
+
+This report covers the original eight-unit pilot, not current 18-unit coverage. Refer to ../verification_status.md for latest reported evidence. The run_artifacts paths below refer to the original delivery archive, not files committed to Git.
+
 # Execution report
 
 ..........................                                               [100%]
