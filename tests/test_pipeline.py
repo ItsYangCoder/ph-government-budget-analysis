@@ -178,3 +178,31 @@ def test_cli_persists_state_across_processes(source):
     b = subprocess.run(cmd, capture_output=True, text=True, check=True)
     assert json.loads(a.stdout)['counts']['PROCESSED'] == 1
     assert json.loads(b.stdout)['counts']['SKIPPED'] == 1
+
+def test_unsafe_symlink_fails_and_valid_file_continues(source):
+    # Create a valid workbook outside the authorized input folder.
+    outside = source['input'].parent / 'outside.xlsx'
+    write_xlsx(outside, source['cells'])
+
+    # Sort the unsafe file before the valid file to test continuation.
+    unsafe = source['input'] / '00_unsafe.xlsx'
+    unsafe.symlink_to(outside)
+
+    summary = run(source)
+    results = {item['file']: item for item in summary['results']}
+
+    assert results[unsafe.name]['status'] == 'FAILED'
+    assert 'outside authorized input root' in results[unsafe.name]['error']
+    assert results[unsafe.name]['processing_key'] is None
+
+    valid = results[source['path'].name]
+    assert valid['status'] == 'PROCESSED'
+    assert valid['row_count'] == 4
+
+    assert summary['counts']['FAILED'] == 1
+    assert summary['counts']['PROCESSED'] == 1
+
+    # Confirm that the failure was saved in the audit report.
+    audit_path = source['output'] / 'audit' / f"{summary['run_id']}.json"
+    audit = json.loads(audit_path.read_text())
+    assert audit['results'] == summary['results']
