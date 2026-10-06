@@ -52,7 +52,7 @@ def ingest_revision(spark, directory, target_table, table_id):
     schema = '.'.join(target_table.split('.')[:2])
     spark.sql(f'CREATE SCHEMA IF NOT EXISTS {schema}')
     if not spark.catalog.tableExists(target_table):
-        df.limit(0).write.format('delta').mode('errorifexists').saveAsTable(target_table)
+        df.limit(0).write.format('delta').mode('append').saveAsTable(target_table)
     existing = spark.table(target_table)
     if existing.schema != df.schema:
         raise ValueError('Target schema differs; explicit schema review required')
