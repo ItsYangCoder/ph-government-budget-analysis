@@ -1,3 +1,11 @@
+"""
+Load one committed revision into a Delta table using a single writer.
+
+Databricks verified: regional_2024/regional_cells, October 7, 2026.
+First load: 840 new rows; identical rerun: zero new rows.
+Other revisions and concurrent writers remain unverified.
+"""
+
 import hashlib
 import json
 import re

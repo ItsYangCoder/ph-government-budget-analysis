@@ -18,8 +18,20 @@ These checks establish loading fidelity for the verified batch.
 They do not resolve the source issues listed above or establish
 analytical comparability.
 
-The separate `databricks/load_bronze.py` helper has not been
-independently verified in Databricks.
+## Separate Bronze helper verification — October 7, 2026
+
+Rhea executed the updated helper code in
+`databricks/verify_load_bronze_helper` using the `regional_2024` package
+and its `regional_cells` table.
+
+- Processing key: `5947eb19912048a9eeef6d3d0466e67d5ae3afac73ff41068d31f37726ddef7c`
+- Target: `pondolens.bronze_test.helper_verification`
+- First run: 840 source rows, 840 candidate new rows, `verified: True`.
+- Identical rerun: zero candidate new rows, `verified: True`.
+
+Verification covers this table and revision with a single writer.
+Other packages and remote concurrency have not been verified through
+this separate helper.
 
 ## Next milestone
 
