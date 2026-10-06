@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pondolens-bronze"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["openpyxl>=3.1.5,<4", "pyarrow>=18,<26", "pdfplumber>=0.11,<0.12"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+pondolens = "pondolens.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+
+[tool.databricks.environment]
+environment_version = '6'

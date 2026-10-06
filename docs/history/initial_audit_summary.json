@@ -1,0 +1,93 @@
+{
+  "tests": "..........................                                               [100%]\n26 passed in 1.05s",
+  "sources": [
+    {
+      "source_id": "agency_2024_summary",
+      "processing_key": "a1ce9261a5af96f7add3e8be420fbb88015180216c2b714d23347953efd906bd",
+      "source_file_name": "FY 2024 SAAODB as of December 31, 2024 (FINAL) (1).xlsx",
+      "file_sha256": "51618bd1e5333f645401e60d042b6d6116476705bfd0cf61026580889d6957e0",
+      "row_count": 2664,
+      "flagged_records": 2664,
+      "validation": "verified",
+      "output": "run_artifacts/committed/agency_2024_summary/a1ce9261a5af96f7add3e8be420fbb88015180216c2b714d23347953efd906bd"
+    },
+    {
+      "source_id": "agency_2025_summary",
+      "processing_key": "800cf017bc3c13020fae5cb3715a7e80cb5292127f9c243dcb12020a022d94c9",
+      "source_file_name": "FY 2025 SAODB- FINAL FOR POSTING (1).xlsx",
+      "file_sha256": "f9a95d902481a138a44487b90b157b236ae78430b45a69e31045dbb9984748a0",
+      "row_count": 2952,
+      "flagged_records": 2952,
+      "validation": "verified",
+      "output": "run_artifacts/committed/agency_2025_summary/800cf017bc3c13020fae5cb3715a7e80cb5292127f9c243dcb12020a022d94c9"
+    },
+    {
+      "source_id": "per_capita_grdp",
+      "processing_key": "172e7b861d559ab08539248ee20dd936c2b81df68324c4fefef11c1b33b731d8",
+      "source_file_name": "02GRDP_PerCapita_2025 (1).xlsx",
+      "file_sha256": "63630c5ab5ba78bdeffc34041a5de68ba552cf48bdec80f9b8b1ebcff353ab5f",
+      "row_count": 76,
+      "flagged_records": 76,
+      "validation": "verified",
+      "output": "run_artifacts/committed/per_capita_grdp/172e7b861d559ab08539248ee20dd936c2b81df68324c4fefef11c1b33b731d8"
+    },
+    {
+      "source_id": "population_projection",
+      "processing_key": "cb130be8e21af25b5b69f0db467ac503cedb45e09ddde741eda4495662c817a7",
+      "source_file_name": "Statistical Tables (2020 CBPP Subnational) (1).xlsx",
+      "file_sha256": "2e9e69f3856ff8b1b04d133e156effef8596738bd0cc94f9925640b8a309c34a",
+      "row_count": 2052,
+      "flagged_records": 2052,
+      "validation": "verified",
+      "output": "run_artifacts/committed/population_projection/cb130be8e21af25b5b69f0db467ac503cedb45e09ddde741eda4495662c817a7"
+    },
+    {
+      "source_id": "regional_2024",
+      "processing_key": "5947eb19912048a9eeef6d3d0466e67d5ae3afac73ff41068d31f37726ddef7c",
+      "source_file_name": "2024_B6a.pdf",
+      "file_sha256": "163915054ab9209a1fc9eb40cd90903a2b88e3e65742af69003f3c3c6302cc06",
+      "row_count": 840,
+      "flagged_records": 840,
+      "validation": "verified",
+      "output": "run_artifacts/committed/regional_2024/5947eb19912048a9eeef6d3d0466e67d5ae3afac73ff41068d31f37726ddef7c"
+    },
+    {
+      "source_id": "regional_2025",
+      "processing_key": "1f1b654662e861595fe99e774f41560073176c52ce862b9ed6f48a6ac5fff730",
+      "source_file_name": "2025_B6b_updated.pdf",
+      "file_sha256": "85342c5c7e5c232987463683e81e3e40c58bb6aa665dc439af2f7b2a19f11729",
+      "row_count": 960,
+      "flagged_records": 960,
+      "validation": "verified",
+      "output": "run_artifacts/committed/regional_2025/1f1b654662e861595fe99e774f41560073176c52ce862b9ed6f48a6ac5fff730"
+    },
+    {
+      "source_id": "sector_2024",
+      "processing_key": "88243a55b3cad8b883327d7078bab61364d27751f2322ebaec498c2a7ed2ae01",
+      "source_file_name": "2024_2026-B5.pdf",
+      "file_sha256": "14ff96ea6587bcee687951385ac7edc26a07b71a7898a6ed9fd12d3d4fbc6753",
+      "row_count": 162,
+      "flagged_records": 162,
+      "validation": "verified",
+      "output": "run_artifacts/committed/sector_2024/88243a55b3cad8b883327d7078bab61364d27751f2322ebaec498c2a7ed2ae01"
+    },
+    {
+      "source_id": "sector_2025",
+      "processing_key": "90ede7bde99636d63b0805c102580153b7c1944b4209538a88caa043e637f98a",
+      "source_file_name": "2025_2027-B5.pdf",
+      "file_sha256": "09f0e99e562206bfa953282af264d55d413a3f302ccf093de451a3f40cfa7e2b",
+      "row_count": 162,
+      "flagged_records": 162,
+      "validation": "verified",
+      "output": "run_artifacts/committed/sector_2025/90ede7bde99636d63b0805c102580153b7c1944b4209538a88caa043e637f98a"
+    }
+  ],
+  "total_records": 9868,
+  "source_processing_keys": 8,
+  "first_run_processed": 8,
+  "rerun_skipped": 8,
+  "rerun_new_outputs": 0,
+  "failed_final_sources": 0,
+  "remote_databricks_execution": "not tested / no remote writes",
+  "agency_scope": "summary sheets only; detail/SUCs deferred"
+}
