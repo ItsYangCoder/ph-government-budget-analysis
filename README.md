@@ -75,7 +75,20 @@ Open `databricks/01_load_bronze.py` as a notebook. Upload committed directories,
 
 The loader checks uploaded checksums and uses Delta MERGE on record IDs. Run one writer per target table. Local SQLite locking does not coordinate remote writers.
 
-**Databricks execution has not yet been verified in the new project workspace.**
+**Historical note:** earlier repository verification documentation predates the team's later Bronze workspace verification. See the Current Bronze status below for the latest team-reported load status.
+
+
+## 6. Profile Bronze before Silver
+
+Open `databricks/02_profile_bronze.py` after Bronze loading has been verified. The notebook is read-only: it inventories the current `pondolens.bronze` tables, checks record IDs and revisions, profiles raw values and quality flags, discovers JSON dimension keys before field-specific queries, and provides separate sections for MIA, RAZZ, ANJE, and JOY.
+
+Do not treat a successful Bronze load as proof that sources are analytically comparable. In particular, do not sum every numeric cell, combine parent totals with children, or combine old and revised records without a documented selection rule. Raw-cell financial completeness and business-key checks remain pending until row/column mappings are verified.
+
+Team assignments, the findings template, and the Silver-readiness checklist are in [docs/bronze_profiling_handoff.md](docs/bronze_profiling_handoff.md).
+
+### Current Bronze status
+
+The team reports that Databricks Bronze loading has been verified for 18 extraction packages producing 21 Delta tables and 798,440 records. Source Parquet and loaded Delta record counts matched, and an identical rerun produced zero candidate new rows. These are loading-fidelity checks only; the profiling notebook queries have not yet been executed and no profiling findings are claimed here.
 
 ## Scope and limitations
 
