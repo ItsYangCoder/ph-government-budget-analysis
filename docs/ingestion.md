@@ -24,7 +24,7 @@ Source root: `/Volumes/pondolens/dev_bronze/government_budget/source/`
 | `02_sector_expenditure` | `02_sector_expenditure_*.csv` | `sector_expenditure` |
 | `03_regional_expenditure` | `03_regional_expenditure_gaa_*.csv` | `regional_expenditure_gaa` |
 | `03_regional_expenditure` | `03_regional_expenditure_obligations_*.csv` | `regional_expenditure_obligations` |
-| `04_population` | `*.csv` (currently `ph_population_projection.csv`) | `population` |
+| `04_population` | `ph_population_projection.csv` or `ph_population_projection_batch_*.csv` | `population` |
 | `05_development_indicators` | `grdp_20*.xlsx` | `grdp` |
 | `05_development_indicators` | `grdp_per_capita_20*.xlsx` | `grdp_per_capita` |
 
@@ -32,34 +32,42 @@ Population uses `ph_population_projection.csv`. GRDP uses `grdp_2023_2025.xlsx` 
 
 ## Loading
 
+Before loading, the script checks source folders, matching filenames, approved population filenames, and configured Excel sheet names.
+
 The script creates missing tables and appends new rows.
 
-- CSV: headers become column names; source values remain strings for cleaning in Silver.
-- Excel: reads the first sheet, with row 1 as the header; column types are inferred. Schema evolution is disabled.
+- CSV: headers become column names; source values remain strings for cleaning in Silver. Unexpected columns or parsing issues are preserved in `_rescued_data`.
+- Excel: reads the configured sheet starting at A1, with row 1 as the header. Column types are inferred; schema evolution is disabled.
+
+Configured Excel sheets:
+
+| Table | Sheet name |
+|---|---|
+| `grdp` | `grdp 2023-2025` |
+| `grdp_per_capita` | `GRDP Per Capita Long` |
 
 Added metadata:
 
 - `_source_file`: source file path.
 - `_ingested_at`: loading timestamp.
-- `_rescued_data`: unexpected CSV columns or parsing issues preserved for review.
 
-Each dataset has its own checkpoint under the Volume’s `_ingestion` folder. Checkpoints track processed files so reruns do not reload them. The script processes available files, then stops.
+Each dataset has its own schema state and checkpoint under the Volume’s `_ingestion` folder. Checkpoints track processed files so reruns do not reload them. The script processes available files, then stops.
 
 ## Run and Add Batches
 
 1. Upload prepared files into the matching source folders.
 2. Run the ingestion script with Volume and table access.
-3. Check row counts and review CSV `_rescued_data`.
+3. Confirm completion, check row counts, and review CSV `_rescued_data`.
 
-For new batches, follow the existing filename patterns and rerun. No year list needs updating. New Excel batches must keep the expected sheet layout and schema.
+For new batches, follow the accepted filename patterns and rerun. No year list needs updating. New Excel batches must keep the configured sheet names, header layout, and expected schema.
 
-Keep checkpoints and loaded filenames unchanged. Renamed/copied files can load again, and duplicate rows within files are not removed. Previously loaded data corrections require a separate process.
+Upload only new records in new batches. Keep checkpoints and loaded filenames unchanged. Renamed/copied files can load again, and duplicate rows within files are not removed. Corrections to previously loaded data require a separate process.
 
 ## Verification
 
 As of October 9, 2026, the original five tables retained their counts across four reruns. Both GRDP tables also retained 114 rows after rerunning ingestion.
 
-| Table | Verified CSV data rows | Bronze rows |
+| Table | Verified source data rows | Bronze rows |
 |---|---:|---:|
 | `agency_actuals` | 3,554 | 3,554 |
 | `sector_expenditure` | 162 | 162 |
@@ -69,8 +77,6 @@ As of October 9, 2026, the original five tables retained their counts across fou
 | `grdp` | 114 | 114 |
 | `grdp_per_capita` | 114 | 114 |
 
-CSV counts exclude headers and were checked against Drive files. Population was counted from the Drive longform file. Bronze counts and rerun results were supplied by the team.
-
-Each GRDP table has 19 rows per year and price basis: 19 × 3 years × 2 price bases = 114 rows. Independent Excel source-row reconciliation remains pending.
+Source counts exclude headers. Budget CSV counts were checked against Drive files; population was counted from the Drive longform file. The team verified 114 data rows in each GRDP Excel source, matching Bronze. Bronze counts and rerun results were supplied by the team.
 
 The checked CSVs had no fully blank records, repeated headers, or inconsistent column counts. Duplicate checks, missing values, units, region matching, and value-level reconciliation remain part of profiling.

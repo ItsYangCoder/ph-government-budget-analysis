@@ -1,3 +1,4 @@
+from fnmatch import fnmatch
 from pyspark.sql import functions as F
 
 TARGET = "pondolens.dev_bronze"
@@ -12,20 +13,26 @@ DATASETS = {
     "regional_expenditure_gaa": (
         "03_regional_expenditure", "03_regional_expenditure_gaa_*.csv", "csv"),
     "regional_expenditure_obligations": (
-        "03_regional_expenditure", "03_regional_expenditure_obligations_*.csv", "csv"),
+        "03_regional_expenditure",
+        "03_regional_expenditure_obligations_*.csv", "csv"),
     "population": (
-        "04_population", "*.csv", "csv"),
+        "04_population", "ph_population_projection*.csv", "csv"),
     "grdp": (
         "05_development_indicators", "grdp_20*.xlsx", "excel"),
     "grdp_per_capita": (
         "05_development_indicators", "grdp_per_capita_20*.xlsx", "excel"),
 }
 
+# Read the intended sheet in each workbook.
+EXCEL_SHEETS = {
+    "grdp": "grdp 2023-2025",
+    "grdp_per_capita": "GRDP Per Capita Long",
+}
+
 
 def ingest(name, folder, pattern, file_format):
     state = f"{ROOT}/_ingestion/{name}"
 
-    # Use reader settings for the dataset's file format.
     options = {
         "cloudFiles.format": file_format,
         "pathGlobFilter": pattern,
@@ -44,12 +51,13 @@ def ingest(name, folder, pattern, file_format):
     elif file_format == "excel":
         options.update({
             "headerRows": "1",
+            "dataAddress": f"'{EXCEL_SHEETS[name]}'!A1",
             "cloudFiles.schemaEvolutionMode": "none",
         })
     else:
         raise ValueError(f"Unsupported format: {file_format}")
 
-    # Read files and record their source and ingestion time.
+    # Read files and add source information.
     df = (
         spark.readStream.format("cloudFiles")
         .options(**options)
@@ -58,7 +66,7 @@ def ingest(name, folder, pattern, file_format):
         .withColumn("_ingested_at", F.current_timestamp())
     )
 
-    # Checkpoints prevent processed files from loading again.
+    # Reuse checkpoints so processed files are not loaded again.
     query = (
         df.writeStream.format("delta")
         .outputMode("append")
@@ -70,6 +78,72 @@ def ingest(name, folder, pattern, file_format):
     query.awaitTermination()
     print(f"Completed: {TARGET}.{name}")
 
+
+# Validate sources before starting any ingestion.
+errors = []
+
+for name, (folder, pattern, file_format) in DATASETS.items():
+    path = f"{ROOT}/source/{folder}"
+
+    try:
+        filenames = [
+            file.name
+            for file in dbutils.fs.ls(path)
+            if not file.isDir()
+        ]
+    except Exception as exc:
+        errors.append(f"{name}: cannot access {path}: {exc}")
+        continue
+
+    matches = [
+        filename for filename in filenames
+        if fnmatch(filename, pattern)
+    ]
+
+    if not matches:
+        errors.append(f"{name}: no files matching {pattern} in {path}")
+
+    # Only accept the approved population naming convention.
+    if name == "population":
+        unexpected = [
+            filename for filename in matches
+            if filename != "ph_population_projection.csv"
+            and not fnmatch(
+                filename, "ph_population_projection_batch_*.csv"
+            )
+        ]
+        if unexpected:
+            errors.append(f"{name}: unexpected filenames: {unexpected}")
+
+    # Confirm every matching workbook has the configured sheet.
+    if file_format == "excel":
+        sheet = EXCEL_SHEETS[name]
+
+        for filename in matches:
+            try:
+                available_sheets = [
+                    row.sheetName
+                    for row in (
+                        spark.read.format("excel")
+                        .option("operation", "listSheets")
+                        .load(f"{path}/{filename}")
+                        .collect()
+                    )
+                ]
+
+                if sheet not in available_sheets:
+                    errors.append(
+                        f"{name}: sheet {sheet!r} missing in {filename}"
+                    )
+            except Exception as exc:
+                errors.append(
+                    f"{name}: cannot inspect {filename}: {exc}"
+                )
+
+if errors:
+    raise ValueError(
+        "Source validation failed:\n" + "\n".join(errors)
+    )
 
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {TARGET}")
 
