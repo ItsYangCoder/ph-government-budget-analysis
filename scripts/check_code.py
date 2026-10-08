@@ -39,14 +39,20 @@ for path in (ROOT / "databricks").rglob("*.ipynb"):
             continue
 
         source = cell.source.lstrip()
-        first_line = source.splitlines()[0].strip()
+        lines = source.splitlines()
+        command = lines[0].strip().split(maxsplit=1)[0]
 
-        # Skip cells written in other notebook languages.
-        if first_line in ("%sql", "%scala", "%r", "%sh", "%md"):
+        # Skip cells that use another language or install packages.
+        if command in (
+             "%sql", "%scala", "%r", "%sh", "%md", "%pip",
+             "%%sql", "%%sh", "%%bash",
+             "%%scala", "%%r", "%%html", "%%javascript",
+        ):
             continue
 
-        if first_line == "%python":
-            source = "\n".join(source.splitlines()[1:])
+        # Remove the language marker, then check the Python code.
+        if command in ("%python", "%%python"):
+         source = "\n".join(lines[1:])
 
         check_python(source, f"{label}, cell {index}")
 
