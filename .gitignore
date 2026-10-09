@@ -216,19 +216,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
-# Local data, outputs, and environments
-data/
-runtime/
-run_artifacts/
-.venv/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.env
-.env.*
-!.env.example
-
-# macOS Finder metadata
-.DS_Store
