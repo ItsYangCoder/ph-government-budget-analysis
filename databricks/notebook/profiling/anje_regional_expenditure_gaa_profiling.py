@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Regional GAA Profiling
-# MAGIC Owner: Anje
+# MAGIC Owner: Anjelica
 # MAGIC Table: `pondolens.dev_bronze.regional_expenditure_gaa`
 # MAGIC Baseline: 1,920 rows
 # MAGIC
