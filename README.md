@@ -1,2 +1,0 @@
-# ph-government-budget-analysis
-A reproducible data pipeline and analysis of Philippine government budget allocations and actual spending by agency, sector, and region from FY2024 to FY2025, using official DBM and OpenStat data.
