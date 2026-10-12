@@ -15,14 +15,44 @@ Tables are committed independently; run only one writer.
 import argparse
 import csv
 import hashlib
+import importlib.util
 import io
 import json
 import re
+import subprocess
 import sys
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Install missing packages using the script's Python interpreter.
+required_packages = {
+    "openpyxl": "openpyxl",
+    "googleapiclient": "google-api-python-client",
+    "google.auth": "google-auth",
+}
+
+missing_packages = []
+
+for module_name, package_name in required_packages.items():
+    try:
+        available = importlib.util.find_spec(module_name) is not None
+    except ModuleNotFoundError:
+        available = False
+
+    if not available:
+        missing_packages.append(package_name)
+
+if missing_packages:
+    subprocess.check_call([
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        *missing_packages,
+    ])
+    importlib.invalidate_caches()
 
 import openpyxl
 from google.oauth2 import service_account
@@ -119,14 +149,6 @@ def parameters():
 
 
 PARAMS = parameters()
-
-print("Effective parameters:", {
-    key: PARAMS[key]
-    for key in (
-        "catalog", "schema", "volume",
-        "drive_folder_id", "dataset", "dry_run"
-    )
-})
 
 CATALOG = PARAMS["catalog"]
 SCHEMA = PARAMS["schema"]
@@ -562,16 +584,6 @@ def main():
         try:
             payload = download(drive, item)
 
-            if "rescue_test" in item["name"].lower():
-                 test_rows = csv.reader(
-                     io.StringIO(payload.decode("utf-8-sig"))
-                 )
-                 for number, values in enumerate(test_rows, start=1):
-                      print(
-                          f"TEST row={number} "
-                          f"fields={len(values)} values={values!r}"
-                     )
-
             headers, records, sheet, header_map = read_rows(
                 item, payload
             )
@@ -641,10 +653,26 @@ def main():
         fingerprint = hashlib.sha256(
             json.dumps(
                 [
-                    (
+                                       (
                         entry[0]["id"],
                         entry[0]["relative_path"],
-                        entry[5],
+                        (
+                            hashlib.sha256(
+                                json.dumps(
+                                    {
+                                        "headers": entry[2],
+                                        "records": entry[3],
+                                        "sheet": entry[4],
+                                        "header_map": entry[6],
+                                    },
+                                    ensure_ascii=False,
+                                    sort_keys=True,
+                                    separators=(",", ":"),
+                                ).encode("utf-8")
+                            ).hexdigest()
+                            if entry[0]["mimeType"] == SHEET_MIME
+                            else entry[5]
+                        ),
                         entry[4],
                     )
                     for entry in sorted(
