@@ -85,7 +85,7 @@ DATASET_NAMES = [
 DEFAULTS = {
     "catalog": "pondolens",
     "schema": "dev_bronze",
-    "volume": "goverment_budget",
+    "volume": "government_budget",
     "drive_folder_id": "1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB",
     "secret_scope": "pondolens",
     "secret_key": "gdrive-service-account",
