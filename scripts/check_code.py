@@ -34,6 +34,17 @@ for path in (ROOT / "databricks").rglob("*.ipynb"):
         errors.append(f"{label}: invalid notebook: {exc}")
         continue
 
+    # Databricks SQL-default cells do not need an explicit %sql marker.
+    databricks_metadata = notebook.metadata.get(
+        "application/vnd.databricks.v1+notebook", {}
+    )
+    default_language = str(
+        databricks_metadata.get("language")
+        or notebook.metadata.get("language_info", {}).get("name")
+        or notebook.metadata.get("kernelspec", {}).get("language")
+        or "python"
+    ).lower()
+
     for index, cell in enumerate(notebook.cells, start=1):
         if cell.cell_type != "code" or not cell.source.strip():
             continue
@@ -50,9 +61,11 @@ for path in (ROOT / "databricks").rglob("*.ipynb"):
         ):
             continue
 
-        # Remove the language marker, then check the Python code.
+        # Explicit cell language overrides the notebook default.
         if command in ("%python", "%%python"):
-         source = "\n".join(lines[1:])
+            source = "\n".join(lines[1:])
+        elif default_language not in ("python", "python3"):
+            continue
 
         check_python(source, f"{label}, cell {index}")
 
