@@ -1,4 +1,4 @@
-%python
+"""Run in Databricks with an active Spark session to compare ingestion outputs."""
 from pyspark.sql import functions as F
 
 ORIGINAL = "pondolens.dev_bronze"
