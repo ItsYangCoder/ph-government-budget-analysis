@@ -1,114 +1,249 @@
-# Bronze Ingestion
+# PondoLens Bronze Ingestion
 
-## Purpose
+The ingestion pipeline reads the project's long-form Google Drive files and
+loads them into Bronze Delta tables in Databricks. The implementation is split
+into reusable Python modules, with one Databricks entry point.
 
-Load prepared long-form files from Google Drive into Bronze Delta tables. Preserve source copies and lineage. Retain all source years; cleaning and business validation belong in Silver.
+**Validation status:** the refactored pipeline completed a live load, an unchanged
+rerun, and source-record comparison for all 11 datasets on October 19, 2026
+(Philippine time). Results apply to the tested source snapshot.
 
-## Setup
+## Entry point and requirements
 
-| Setting | Value |
-| --- | --- |
-| Script | `databricks/scripts/bronze/01_ingest_from_gdrive.py` |
-| Execution | Manual Run in the Databricks Python file editor |
-| Catalog | `pondolens` |
-| Schema | `dev_bronze` |
-| Volume | `government_budget` |
-| Source folder ID | `1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB` |
-| Audit table | `pondolens.dev_bronze.gdrive_ingestion_log` |
+Run this file from the checked-out repository:
 
-Enable the Google Drive API and share the source folder with the service account as Viewer. Store credentials in Databricks Secrets: scope `pondolens`, key `gdrive-service-account`. The script requires access to `spark`, `dbutils`, the schema, and the Volume.
+```text
+platform/databricks/runners/run_ingestion.py
+```
 
-Missing `openpyxl`, `google-api-python-client`, and `google-auth` packages are installed by the script. Installation requires package access and environment write permission. Never store credentials in Git.
+Keep the repository's `src/pondolens/` package alongside the runner. Uploading
+only the runner is insufficient.
 
-## Parameters and Usage
+Requirements:
 
-| Parameter | Value |
-| --- | --- |
-| `catalog` | `pondolens` |
-| `schema` | `dev_bronze` |
-| `volume` | `government_budget` |
-| `drive_folder_id` | Source folder ID above |
-| `dataset` | `all` or one dataset |
-| `dry_run` | `true`: validate only; `false`: load and log |
-| `secret_scope` | `pondolens` |
-| `secret_key` | `gdrive-service-account` |
-| `sheet_overrides_json` | `{}` or a mapping of Drive file IDs to worksheet names |
+- Databricks Spark compute with Unity Catalog and managed storage configured.
+- Permissions to use the target catalog, schema, volume, and tables, and create
+  missing objects when required.
+- A Google service account with read access to the source Drive folder.
+- Read access to the configured service-account secret.
 
-1. Open the script and set parameters.
-2. Run with `dry_run=true`; resolve validation errors.
-3. Run with `dry_run=false` to load.
-4. Review run output and the audit log.
+The runner installs missing `openpyxl`, `google-api-python-client`, `google-auth`,
+and `databricks-sdk` packages before initialization. This requires package-index
+access and permission to install. Existing packages are retained. For repeatable
+Jobs, configure dependencies in the task environment. Spark is supplied by
+Databricks.
 
-## Dataset Mapping and Counts
+## Interactive parameters
 
-Indicator folders below are under `05_development_indicators`.
+Run without recognized CLI arguments to use the native Databricks widgets.
 
-| Source folder | Table | Files | Rows |
-| --- | --- | ---: | ---: |
-| `01_agency_actuals` | `agency_actuals` | 5 | 9,628 |
-| `02_sector_expenditure` | `sector_expenditure` | 5 | 414 |
-| `03_regional_expenditure`, filename contains `gaa` | `regional_expenditure_gaa` | 5 | 4,780 |
-| `03_regional_expenditure`, filename contains `obligation` | `regional_expenditure_obligations` | 3 | 4,046 |
-| `04_population` | `population` | 1 | 16,416 |
-| Indicator: `01_quality_education` | `ched_graduates` | 1 | 4,843 |
-| Indicator: `02_unemployment_rate` | `unemployment_rate` | 1 | 1,914 |
-| Indicator: `03_poverty_incidence` | `poverty_incidence` | 1 | 644 |
-| Indicator: `04_service_access` | `service_access` | 1 | 400 |
-| Indicator: `05_grdp` | `grdp` | 1 | 95 |
-| Indicator: `06_grdp_capita` | `grdp_per_capita` | 1 | 296 |
-| **Total** | **11 datasets** | **25** | **43,476** |
-
-Counts confirmed on October 12, 2026. Subfolders are scanned recursively. New files in mapped folders are included automatically.
-
-## Processing
-
-- CSV files are parsed directly. XLSX/XLSM files use cached cell values; macros are not executed.
-- Google Sheets are exported as XLSX. Worksheet overrides take priority; ambiguous selection fails validation.
-- Headers are normalized to lowercase with underscores. Source values remain strings; blank Excel cells remain NULL. Blank rows are skipped.
-- Different file schemas are combined by column name; missing columns become NULL.
-- Selected files are validated before writes. Unreadable files, invalid headers, unsupported sources, and parser errors stop validation.
-
-## Rescued Data
-
-Rows with missing or extra fields are retained in `_rescued_data` as JSON, including their original values and source row. Their source columns are set to NULL; lineage remains populated. Valid-length rows have `_rescued_data=NULL`.
-
-Rescued rows count toward total rows and `rescued_rows` in the audit log. They do not automatically fail ingestion. Numeric validity, missing values, duplicates, and business rules are checked in Silver.
-
-## Source Copies and Reruns
-
-Source copies are saved under `/Volumes/pondolens/dev_bronze/government_budget/gdrive_landing/<drive_file_id>/<content_hash>.<extension>`.
-
-Lineage includes file ID, source path, landing path, modification time, worksheet, byte hash, original header mapping, dataset fingerprint, run ID, and load time.
-
-Stored files use byte hashes for change detection. Google Sheets use parsed-content hashes to avoid reloads caused only by export-byte changes. The byte hash is retained for source-file lineage.
-
-Matching fingerprint and row count, with the rescue column present, results in `SKIPPED`. Changed datasets replace their complete table snapshot and schema; rows are not appended.
-
-Keep complete source history in Drive. Removing a file removes its rows on the next reload. Removing every file for a dataset does not automatically clear its existing table. Run one writer at a time. Dataset commits are independent; failures do not roll back completed writes.
-
-## Audit Trail
-
-| Field | Meaning |
-| --- | --- |
-| `run_id` | Execution ID |
-| `dataset` | Dataset name |
-| `status` | SUCCESS, SKIPPED, or FAILED |
-| `files_loaded` | Files written in the snapshot; 0 on skip |
-| `rows_loaded` | Snapshot rows written; 0 on skip; stored as string |
-| `rescued_rows` | Rescued rows written; 0 on skip |
-| `started_at` | Dataset processing start after validation |
-| `finished_at` | Log time, stored as ISO text |
-| `message` | Error/details |
-
-Older records may have NULL in added fields. Skip counts describe that run, not existing table quality. A failure after a table write does not imply rollback.
-
-## Verified Results
-
-| Check | Result | Run ID |
+| Widget | Default | Purpose |
 | --- | --- | --- |
-| Source and table counts | 25 files, 11 datasets, 43,476 rows confirmed | `39250e01a86e4ef093baffaaca1e8b3f` |
-| Drive-to-Bronze rescue | 3 test rows; 2 rescued; original values preserved | `3868a748ca17469a9d5539c0af94f0cb` |
-| Population unchanged rerun | SKIPPED with parsed-content hashing | `e9f4626f91994054ba61545177458083` |
-| Full unchanged rerun | All 11 datasets SKIPPED | `39250e01a86e4ef093baffaaca1e8b3f` |
+| `catalog` | `pondolens` | Target catalog |
+| `schema` | `dev_bronze` | Target Bronze schema |
+| `volume` | `government_budget` | Landing-file volume within the target schema |
+| `drive_folder_id` | `1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB` | Source folder ID |
+| `secret_scope` | `pondolens` | Service-account secret scope |
+| `secret_key` | `gdrive-service-account` | Service-account JSON secret key |
+| `dataset` | `all` | All supported datasets or one dataset |
+| `dry_run` | `true` | Validate without writing target data |
+| `sheet_overrides_json` | `{}` | File-ID-to-sheet-name overrides |
 
-Rescue testing used `bronze_test`. Test files were excluded from the final regular source listing. These checks verify ingestion behavior, not overall business-data quality.
+Widgets may retain previously selected values. Check the target schema and
+`dry_run` before every run. Native widget availability depends on the execution
+context; unsupported contexts raise an error.
+
+Additional settings remain available through CLI arguments, including
+`auth_mode`, `service_account_path`, replacement overrides, and resource limits.
+Secret authentication is the default. File authentication requires an explicitly
+selected file mode and the correct credentials path for the execution identity.
+Keep credential contents outside Git.
+
+## Run the pipeline
+
+1. Open the runner and select `dataset=all`, `dry_run=true`.
+2. Confirm `Connected!`, the expected `VALID` messages, and a complete `Plan` with
+   no exception. A dry run does not write landing files, tables, or audit logs,
+   and does not create catalog, schema, or volume objects.
+3. Confirm the intended schema, then set `dry_run=false` and rerun.
+4. Confirm `SUCCESS` or `SKIPPED` for every planned dataset and `Completed run`.
+5. Inspect the ingestion log for the completed run.
+
+On load runs, the pipeline uses `CREATE ... IF NOT EXISTS` for the catalog,
+schema, and managed volume after preflight validation. It then stores source
+files under the volume's `gdrive_landing/` directory and writes the Bronze tables.
+
+Regular target:
+
+```text
+pondolens.dev_bronze
+/Volumes/pondolens/dev_bronze/government_budget
+```
+
+For isolated testing, use a separate schema. The schema actually used in the
+recorded validation was **`dev_bronze_refactor_tes`**, without a final `t`.
+
+## Supported datasets
+
+| Bronze table | Source category |
+| --- | --- |
+| `agency_actuals` | Agency actuals |
+| `regional_appropriation` | Regional GAA appropriation files |
+| `regional_obligations` | Regional obligation files |
+| `population` | Population projections |
+| `unemployment_rate` | Unemployment indicators |
+| `poverty_incidence` | Poverty indicators |
+| `service_access` | Water, electricity, and internet indicators |
+| `grdp_per_capita` | GRDP per capita |
+| `completion_rate` | Education completion indicators |
+| `region_boundaries` | Regional GeoJSON boundaries |
+| `hospital` | DOH-regulated hospital data |
+
+CHED graduates, GRDP, and sector expenditure are excluded from ingestion,
+including during `dataset=all` runs. GRDP per capita remains included.
+Original Drive folder and file names remain supported.
+
+Earlier target names were `regional_expenditure_gaa`,
+`regional_expenditure_obligations`, and `doh_regulated_hospitals`. The current
+pipeline writes to the names listed above. It does not rename or delete old
+tables automatically. Update downstream references where applicable.
+
+## Writes, hashes, and audit trail
+
+- A changed dataset is replaced from all its current selected Drive files.
+- Missing previously ingested source files or removed source columns block
+  replacement unless the corresponding override is explicitly enabled.
+- Source inventory changes during validation block the load.
+- File-size and row limits constrain driver-side parsing.
+- Unchanged dataset hashes and row counts cause a `SKIPPED` result.
+- Source files are still read and parsed on unchanged reruns to compute hashes.
+- Commits are atomic per table, not across the complete pipeline. A failed run
+  may have already committed other tables; review the log before retrying.
+
+Bronze lineage columns:
+
+```text
+_drive_file_id
+_source_file
+_landing_file
+_source_modified_at
+_source_sheet
+_content_hash
+_header_map
+_dataset_hash
+_run_id
+_ingested_at
+_rescued_data
+```
+
+The audit table is `<catalog>.<schema>.gdrive_ingestion_log`. It records each
+dataset's status, loaded row count, file count, rescued row count, and timing.
+Audit logging can fail separately from a table commit; inspect the target table
+when investigating failures.
+
+Example for regular runs:
+
+```sql
+SELECT *
+FROM pondolens.dev_bronze.gdrive_ingestion_log
+ORDER BY finished_at DESC;
+```
+
+## Recorded validation
+
+The user executed the live checks in Databricks and supplied the results.
+
+| Check | Observed result |
+| --- | --- |
+| Offline tests | 18 passed |
+| Offline parser/hash comparison | Sample CSV, rescued records, completion-rate, Excel, and GeoJSON outputs matched the latest standalone script |
+| Live dry run | 23 files planned for 11 tables |
+| Initial live load | All 11 datasets reported `SUCCESS`; zero rescued rows in the ingestion log |
+| Unchanged live rerun | All 11 datasets reported `SKIPPED` |
+| Record comparison | All 11 datasets reported `MATCH`; zero differences in both directions |
+
+Live run identifiers:
+
+- Initial load: `89b3244efba54029adb6cecaacc47efa`
+- Unchanged rerun: `19a70355763c42049a2927780c8aa190`
+
+Record comparison used original schema `pondolens.dev_bronze` and refactored
+schema `pondolens.dev_bronze_refactor_tes`. It compared source columns and
+`_rescued_data` as strings using `EXCEPT ALL` in both directions, preserving
+record multiplicity. Other ingestion metadata, such as run IDs, timestamps,
+landing paths, and hash columns, was excluded from this live comparison.
+
+| Dataset | Original rows | Refactored rows | Original-only rows | Refactored-only rows | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `agency_actuals` | 9,628 | 9,628 | 0 | 0 | MATCH |
+| `regional_appropriation` | 4,780 | 4,780 | 0 | 0 | MATCH |
+| `regional_obligations` | 4,345 | 4,345 | 0 | 0 | MATCH |
+| `population` | 16,416 | 16,416 | 0 | 0 | MATCH |
+| `unemployment_rate` | 1,914 | 1,914 | 0 | 0 | MATCH |
+| `poverty_incidence` | 644 | 644 | 0 | 0 | MATCH |
+| `service_access` | 400 | 400 | 0 | 0 | MATCH |
+| `grdp_per_capita` | 296 | 296 | 0 | 0 | MATCH |
+| `completion_rate` | 171 | 171 | 0 | 0 | MATCH |
+| `region_boundaries` | 18 | 18 | 0 | 0 | MATCH |
+| `hospital` | 68 | 68 | 0 | 0 | MATCH |
+
+These results verify loading, unchanged-data detection, and compared-record
+parity for this snapshot. Zero rescued rows indicates no parser-rescued
+column-count mismatches; it does not establish completeness, uniqueness, or
+business validity. Those require the project's separate DQ checks.
+
+## Code layout
+
+| File | Responsibility |
+| --- | --- |
+| `src/pondolens/cli.py` | Command-line entry point |
+| `src/pondolens/common/config.py` | Defaults and parameter validation |
+| `src/pondolens/common/dependencies.py` | Missing-package setup |
+| `src/pondolens/common/hashing.py` | Dataset fingerprints |
+| `src/pondolens/ingestion/pipeline.py` | Coordinate validation and loads |
+| `src/pondolens/ingestion/google_drive.py` | Authentication, listing, traversal, and downloads |
+| `src/pondolens/ingestion/routing.py` | Dataset routing and exclusions |
+| `src/pondolens/ingestion/parsers.py` | CSV, Excel, completion-rate, and GeoJSON parsing |
+| `src/pondolens/ingestion/validation.py` | Preflight checks and replacement safeguards |
+| `src/pondolens/storage/databricks.py` | Runtime setup, landing files, Delta writes, and logs |
+| `platform/databricks/runners/run_ingestion.py` | Widgets and Databricks execution |
+
+Each run has an independent context rather than mutable module-global runtime
+state. This refactor still uses Databricks storage; it does not implement a local
+storage backend or convert Silver/Gold transformations to dbt.
+
+## Jobs and command-line execution
+
+For a Databricks Job Python script task, target the runner. Example validation
+arguments:
+
+```json
+["--dataset", "all", "--schema", "dev_bronze", "--dry_run", "true"]
+```
+
+After reviewing validation, change `true` to `false` for a load. Set maximum
+concurrent runs to **1**. Recognized CLI arguments take precedence over widgets.
+Update existing Job task paths when adopting the new runner.
+
+To install the package from the repository root:
+
+```bash
+python -m pip install -e .
+pondolens --dataset all --dry_run true
+```
+
+The CLI requires a working Databricks Spark execution environment. Installing
+it on an ordinary laptop does not establish a remote Databricks session.
+
+## Offline checks
+
+From the repository root:
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests/unit -v
+```
+
+The tests mock package installation and external services. They cover parsing,
+routing, parameter widgets, safeguards, dry runs, storage creation order, audit
+columns, mocked writes, and unchanged reruns. Repeat relevant live validation
+when parsing, routing, schema, or write behavior changes.
