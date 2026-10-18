@@ -1,3 +1,16 @@
+# Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "6"
+# ///
+# /// script
+# [tool.databricks.environment]
+# dependencies = [
+#   "openpyxl",
+#   "google-api-python-client",
+#   "google-auth",
+# ]
+# ///
 """PondoLens Google Drive -> Bronze Delta ingestion (regular Python script).
 
 Run as a Databricks Job Python script task; set maximum concurrent runs to 1.
