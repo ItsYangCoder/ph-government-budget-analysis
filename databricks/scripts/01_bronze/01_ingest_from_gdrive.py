@@ -13,7 +13,8 @@ preserved. Each changed dataset is replaced from ALL its current Drive files.
 Missing files or removed columns block replacement unless explicitly allowed.
 Commits are atomic per Delta table, not across the whole run; retry partial runs.
 Driver-side parsing is intended for small reports within configured limits.
-Geometry remains raw JSON in Bronze. Regular .py file; no notebook cells or runtime pip.
+Geometry remains raw JSON in Bronze. Regular .py file; no notebook cells.
+Missing third-party dependencies are installed before initialization.
 Interactive runs use native Databricks widgets when available. Explicit CLI
 arguments take precedence and remain supported for Job Python script tasks.
 """
@@ -30,22 +31,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-DATASET_NAMES = [
-    "agency_actuals",
-    "sector_expenditure",
-    "regional_expenditure_gaa",
-    "regional_expenditure_obligations",
-    "population",
-    "ched_graduates",
-    "unemployment_rate",
-    "poverty_incidence",
-    "service_access",
-    "grdp",
-    "grdp_per_capita",
-    "completion_rate",
-    "region_boundaries",
-    "doh_regulated_hospitals",
-]
+DATASET_NAMES = ['agency_actuals', 'regional_appropriation', 'regional_obligations', 'population', 'unemployment_rate', 'poverty_incidence', 'service_access', 'grdp_per_capita', 'completion_rate', 'region_boundaries', 'hospital']
 DEFAULTS = {
     "catalog": "pondolens",
     "schema": "dev_bronze",
@@ -70,6 +56,46 @@ WIDGET_NAMES = (
     "catalog", "schema", "volume", "drive_folder_id", "secret_scope",
     "secret_key", "dataset", "dry_run", "sheet_overrides_json",
 )
+
+
+
+def ensure_dependencies():
+    """Install missing third-party packages in the current Python environment."""
+    import importlib
+    import importlib.util
+    import subprocess
+
+    required = {
+        "openpyxl": "openpyxl>=3.1,<4",
+        "googleapiclient": "google-api-python-client>=2,<3",
+        "google.auth": "google-auth>=2,<3",
+        "databricks.sdk": "databricks-sdk>=0.30,<1",
+    }
+    missing = []
+    for module, package in required.items():
+        try:
+            available = importlib.util.find_spec(module) is not None
+        except ModuleNotFoundError:
+            available = False
+        if not available:
+            missing.append(package)
+
+    if not missing:
+        return
+
+    print("Installing missing dependencies: " + ", ".join(missing), flush=True)
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", *missing],
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(
+            "Dependency installation failed. Configure openpyxl, "
+            "google-api-python-client, google-auth and databricks-sdk "
+            "in the Databricks compute/task environment, then rerun."
+        ) from exc
+    importlib.invalidate_caches()
 
 
 def widget_parameters():
@@ -203,25 +229,25 @@ def route(relative_path):
     root, name = (folder_label(parts[0]), parts[-1])
     direct = {
         "agency_actuals": "agency_actuals",
-        "sector_expenditure": "sector_expenditure",
+        "sector_expenditure": "__excluded__",
         "population": "population",
     }
     if root in direct:
         return direct[root]
     if root == "regional_expenditure":
         if "gaa" in name:
-            return "regional_expenditure_gaa"
+            return "regional_appropriation"
         if "obligation" in name:
-            return "regional_expenditure_obligations"
-    if root == "health" and name.startswith("doh_regulated_hospitals"):
-        return "doh_regulated_hospitals"
+            return "regional_obligations"
+    if root == "health" and name.startswith(("doh_regulated_hospitals", "hospital")):
+        return "hospital"
     if root == "development_indicators" and len(parts) > 2:
         return {
-            "quality_education": "ched_graduates",
+            "quality_education": "__excluded__",
             "unemployment_rate": "unemployment_rate",
             "poverty_incidence": "poverty_incidence",
             "service_access": "service_access",
-            "grdp": "grdp",
+            "grdp": "__excluded__",
             "grdp_capita": "grdp_per_capita",
             "grdp_per_capita": "grdp_per_capita",
             "student_completion_rate": "completion_rate",
@@ -573,13 +599,17 @@ def source_snapshot(sources):
 
 
 def table_exists(table):
-    """Treat a missing namespace as absent during a first validation run."""
+    """Treat a missing namespace or concurrently dropped table as absent."""
     try:
-        return spark.catalog.tableExists(table)
+        if not spark.catalog.tableExists(table):
+            return False
+        # Catalog metadata can be stale right after a drop; force resolution now.
+        spark.table(table).schema
+        return True
     except Exception as exc:
         get_condition = getattr(exc, "getCondition", None) or getattr(exc, "getErrorClass", None)
         condition = get_condition() if get_condition else None
-        if condition in {"CATALOG_NOT_FOUND", "SCHEMA_NOT_FOUND", "NO_SUCH_CATALOG_EXCEPTION", "NO_SUCH_DATABASE"}:
+        if condition in {"CATALOG_NOT_FOUND", "SCHEMA_NOT_FOUND", "NO_SUCH_CATALOG_EXCEPTION", "NO_SUCH_DATABASE", "TABLE_OR_VIEW_NOT_FOUND"}:
             return False
         raise
 
@@ -634,6 +664,8 @@ def main():
     total_bytes = total_rows = 0
     for item in sources:
         dataset = route(item["relative_path"])
+        if dataset == "__excluded__":
+            continue
         if SELECTED_DATASET != "all" and dataset != SELECTED_DATASET:
             continue
         supported = supported_source(item, dataset)
@@ -808,5 +840,6 @@ def main():
 
 
 if __name__ == "__main__":
+    ensure_dependencies()
     initialize(parameters())
     main()
