@@ -1,11 +1,12 @@
 # Regulated Hospitals: Profiling Findings
 
-**Care Person** `Joy`  
 **Bronze table:** `pondolens.dev_bronze.hospital`  
 **Coverage:** 2021–2024, 17 regions  
 **Rows:** 68  
 **Grain:** One record per region per year  
 **Measure:** Government regulated hospitals
+**Evidence:** Databricks query results supplied by `Joy(JoyInBytes)` ; source CSV inspected separately.
+
 
 ## Results
 
