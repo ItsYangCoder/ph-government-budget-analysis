@@ -1,28 +1,28 @@
 -- Regional GAA Profiling
 -- Source: regional_appropriation_profiling.ipynb
--- Table: pondolens.dev_bronze.regional_expenditure_gaa
+-- Table: pondolens.dev_bronze.regional_appropriation
 -- Read-only profiling queries
 
 
 -- 1. Structure and coverage
 
-DESCRIBE TABLE pondolens.dev_bronze.regional_expenditure_gaa;
+DESCRIBE TABLE pondolens.dev_bronze.regional_appropriation;
 
 SELECT *
-FROM pondolens.dev_bronze.regional_expenditure_gaa
+FROM pondolens.dev_bronze.regional_appropriation
 LIMIT 10;
 
 SELECT DISTINCT(particulars)
-FROM pondolens.dev_bronze.regional_expenditure_gaa;
+FROM pondolens.dev_bronze.regional_appropriation;
 
 -- List of all regions
 
 SELECT
     DISTINCT(regions) as region_list
-FROM pondolens.dev_bronze.regional_expenditure_gaa;
+FROM pondolens.dev_bronze.regional_appropriation;
 
 SELECT COUNT(*)
-FROM pondolens.dev_bronze.regional_expenditure_gaa;
+FROM pondolens.dev_bronze.regional_appropriation;
 
 
 -- 2. Data quality
@@ -40,7 +40,7 @@ SELECT
     COUNT_IF(expenditure_amount IS NULL) as expenditure_amount_nulls,
     COUNT_IF(unit_amount IS NULL) as unit_amount_nulls
 FROM
-    pondolens.dev_bronze.regional_expenditure_gaa;
+    pondolens.dev_bronze.regional_appropriation;
 
 -- Duplicates
 SELECT
@@ -54,7 +54,7 @@ SELECT
     expenditure_amount,
     unit_amount,
     COUNT(*) AS duplicate_count
-FROM pondolens.dev_bronze.regional_expenditure_gaa
+FROM pondolens.dev_bronze.regional_appropriation
 GROUP BY
     source_name,
     source_page,
@@ -84,7 +84,7 @@ WITH column_values AS (
             'expenditure_amount', CAST(expenditure_amount AS STRING),
             'unit_amount', CAST(unit_amount AS STRING)
         ) AS (column_name, column_value)
-    FROM pondolens.dev_bronze.regional_expenditure_gaa
+    FROM pondolens.dev_bronze.regional_appropriation
 )
 SELECT
     file_name,
@@ -117,7 +117,7 @@ WITH reconciliation AS (
             ELSE 0 END
         ) AS calculated_total
 
-    FROM pondolens.dev_bronze.regional_expenditure_gaa
+    FROM pondolens.dev_bronze.regional_appropriation
     GROUP BY year, category, particulars
 )
 
@@ -149,7 +149,7 @@ WITH reconciliation AS (
             ELSE 0 END
         ) AS calculated_total
 
-    FROM pondolens.dev_bronze.regional_expenditure_gaa
+    FROM pondolens.dev_bronze.regional_appropriation
     WHERE category IN (
         'DEPARTMENTS',
         'SPECIAL PURPOSE FUNDS'
@@ -193,7 +193,7 @@ WITH reconciliation AS (
             END
         ) AS calculated_grand_total
 
-    FROM pondolens.dev_bronze.regional_expenditure_gaa
+    FROM pondolens.dev_bronze.regional_appropriation
     GROUP BY year, regions
 )
 
