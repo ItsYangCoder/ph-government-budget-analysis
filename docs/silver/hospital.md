@@ -1,56 +1,147 @@
-# Hospital Silver
+# Hospital — Silver Documentation
 
-## Overview
+Assigned to: Joy  
+Updated: 19 October 2026 (Asia/Manila)  
+Source: `pondolens.dev_bronze.hospital`  
+Reference: `pondolens.dev_silver.shared_region_crosswalk`  
+Target: `pondolens.dev_silver.hospital`
 
-The Hospital Silver table contains cleaned and standardized regional counts of regulated government hospitals.
+## Purpose and grain
 
-**Source:** `pondolens.dev_bronze.hospital`  
-**Silver table:** `pondolens.dev_silver.hospital`  
-**Grain:** One row per year, region, and hospital type  
-**Coverage:** 2021–2024; 17 regions per year
+Standardize regional regulated hospital counts for analysis by year, region, and hospital category.
 
-## Columns
+One row represents **year × region_code × hospital_type**. This combination is the natural key. `hospital_id` is the surrogate identifier.
 
-| Column | Description |
+The profiled source contains **68 records covering 2021–2024 and 17 historical regions**. All records are Government hospitals. Private and Total records are absent, and Negros Island Region is not separately listed.
+
+## Output data dictionary
+
+| Column | Type | Description |
+|---|---|---|
+| hospital_id | BIGINT for new tables | Surrogate ID starting at 7,000,001; existing matched keys retain their IDs. The earlier table may retain its INT column because CREATE TABLE IF NOT EXISTS does not migrate its type. |
+| year | INT | Reporting year. Revised SQL accepts a four-digit year between 1900 and 9999. |
+| region_code | STRING | Standard project region code from the shared crosswalk; not an official PSGC code. |
+| region_name | STRING | Standard region name supplied by the crosswalk. |
+| hospital_type | STRING | Standardized category: Government, Private, or Total. Only Government is present in the profiled source. |
+| regulated_hospital_count | INT | Nonnegative whole-number count of regulated hospitals. Must fit the INT type. |
+| unit | STRING | hospitals. |
+| processed_at | TIMESTAMP | Silver processing timestamp assigned on insert or when tracked attributes change. |
+
+`processed_at` is the only audit field. Original source labels, publication details, coverage notes, and ingestion lineage remain in Bronze rather than being copied into Silver. Exact historical tracing requires separately retained source versions or execution records.
+
+## Transformation rules
+
+1. Trim year and hospital-count text. Keep the raw text in staging so invalid inputs can be detected before writing.
+2. Validate year as four digits and cast it to INT.
+3. Validate hospital count as digits only, cast it to INT, and require a nonnegative value. Decimal, signed, comma-formatted, blank, and nonnumeric text are rejected rather than silently rounded or removed.
+4. Match the trimmed source region to the shared crosswalk using uppercase and trim normalization. Copy region_code and region_name from the mapping.
+5. Standardize known category labels to Government, Private, or Total. Other categories block the load.
+6. Lowercase and trim the unit; require hospitals.
+7. Preserve existing IDs for matched natural keys and allocate IDs to new keys.
+
+The staging join is LEFT JOIN so unmatched source records remain visible to validation. Records are not silently discarded through an INNER JOIN or invalid-value WHERE filter.
+
+## Validation gates
+
+Before the data MERGE, the script checks:
+
+- Crosswalk aliases are unique after uppercase/trim normalization.
+- The source stage contains records.
+- Years and counts satisfy the accepted format and numeric range.
+- All regions have nonblank mapped codes and names.
+- Hospital types and units are recognized.
+- Source natural keys are unique.
+- Existing target IDs and key fields are present; IDs are greater than 7,000,000.
+- Existing target natural keys and IDs are unique.
+
+Invalid input stops the load. These checks establish structural and value validity, not proof that the correct source dataset was supplied. Unrelated data with the same structure and valid-looking values can still pass. File routing, source identity, required-header checks, and business reconciliation must also be handled in the ingestion and data-quality workflow.
+
+## IDs and MERGE behavior
+
+The ID base is 7,000,000. New keys receive `current maximum ID + ROW_NUMBER()`, beginning at 7,000,001 for an empty target. Rows are ordered by year, region_code, and hospital_type for allocation.
+
+| Situation | Action |
 |---|---|
-| `hospital_id` | Silver record identifier; starts at 7000001 |
-| `year` | Reporting year as an integer |
-| `region_code` | Standard short region code from the shared crosswalk |
-| `region_name` | Standard region name from the shared crosswalk |
-| `hospital_type` | Hospital classification; currently `Government` |
-| `regulated_hospital_count` | Number of regulated hospitals, stored as an integer |
-| `unit` | Measure unit; `hospitals` |
-| `source_agency` | Publishing or reporting agency from Bronze |
-| `source_publication` | Source publication from Bronze |
-| `source_table` | Source table or section from Bronze |
-| `source_page` | Source page reference from Bronze |
-| `source_url` | Source URL from Bronze |
-| `coverage_note` | Source coverage notes from Bronze |
-| `processed_at` | Timestamp when the Silver query ran |
+| Existing key, same region name/count/unit | Leave the row and processed_at unchanged. |
+| Existing key, changed region name/count/unit | Update attributes and processed_at; retain hospital_id. |
+| Existing key with NULL processed_at | Populate processed_at and refresh tracked attributes. |
+| New year/region/category key | Insert with a newly allocated ID. |
+| Target key absent from the current source | Retain the target row; no automatic deletion. |
+| Unmapped region, invalid value, or duplicate key | Fail before the data MERGE. |
 
-## Silver transformations
+New years are accepted without extending a fixed year list. New region labels require crosswalk entries. Private or Total records can be accommodated if supplied and validated; this does not imply that those categories exist in the current source.
 
-- Cast `year` to integer and `regulated_hospital_count` to integer.
-- Trim text fields.
-- Map `region_name` from Bronze to the shared crosswalk’s `region_code` and standard `region_name`.
-- Retain source provenance fields that support traceability.
-- Exclude rows with invalid year or hospital count values.
+The script reads the current Bronze table each run. It is an upsert over that input, not a changed-record-only scan. A corrected natural key is treated as a new key; the old key remains until separately reconciled.
 
-## Validation results
+ID allocation requires a single writer. It is not a durable sequence: manual deletion of the highest IDs can allow reuse later. Retain records and IDs, or introduce a persistent key registry before requiring permanent historical identity across deletions.
 
-- 68 total records and 68 unique IDs
-- 17 regions for each year from 2021 through 2024
-- No null IDs, region codes, or hospital counts
-- No duplicate records at the year × region × hospital type grain
-- Bronze and Silver row counts and hospital-count totals match for every year
+## Table creation and cleanup
 
-| Year | Rows | Regulated government hospitals |
-|---:|---:|---:|
+The script creates the target when absent. Existing rows and matched IDs are retained.
+
+For the earlier table version, it enables Delta name-based column mapping and removes these columns when present:
+
+- source_agency
+- source_publication
+- source_table
+- source_page
+- source_url
+- coverage_note
+
+This removes the columns from the active Silver schema, not from Bronze. Old Delta versions and physical files may retain dropped values until normal retention procedures remove them. Column mapping can upgrade table protocol requirements; downstream readers must support it.
+
+Schema cleanup and the MERGE are separate operations. An error after cleanup does not roll back the earlier schema changes. The script does not automatically migrate other incompatible schema differences, including the existing hospital_id type.
+
+## Recorded validation
+
+The existing profiling and Hospital Silver documentation recorded these results for the earlier implementation:
+
+| Check | Recorded result |
+|---|---:|
+| Rows / unique IDs | 68 / 68 |
+| Regions per year | 17 |
+| Year coverage | 2021–2024 |
+| Duplicate natural keys | 0 |
+| Null IDs, region codes, or hospital counts | 0 |
+| Bronze vs Silver row/count-total differences per year | 0 |
+
+| Year | Region-year records | Sum of government hospital counts |
+|---|---:|---:|
 | 2021 | 17 | 440 |
 | 2022 | 17 | 434 |
 | 2023 | 17 | 445 |
 | 2024 | 17 | 456 |
 
-## Interpretation note
+These are historical results, not execution evidence for the revised upsert and column-cleanup script. The revised script still requires validation of the final schema, preserved IDs, insert/update behavior, unchanged reruns, and failure handling before unattended scheduling.
 
-This dataset counts regulated government hospitals by region and year. It does not represent hospital beds, total healthcare facilities, or healthcare access by itself.
+## Job execution and acceptance checks
+
+1. Run after successful Bronze ingestion and crosswalk maintenance.
+2. Execute SQL in order and stop on the first error.
+3. Set Job maximum concurrent runs to 1. Avoid concurrent manual writes, overlapping ingestion, and crosswalk edits during the Silver load.
+4. For the unchanged current snapshot, reconcile target rows and yearly totals against the recorded baseline, provided the target contains no additional retained historical keys.
+5. Verify IDs and natural keys are unique and non-null; confirm only the eight documented output columns remain.
+6. Run again with unchanged input: row count, IDs, values, and processed_at should remain unchanged.
+7. In an isolated test schema, revise a count and add a new key. Verify that the changed record keeps its ID, the new key receives a new ID, and processing timestamps reflect the changes.
+8. Test invalid values, duplicate keys, and an unmapped region; confirm they block loading rather than dropping records silently.
+
+The temporary staging view is evaluated against its underlying tables; the validation statements and MERGE are not one multi-statement transaction. Prevent concurrent changes to the source and crosswalk while executing the load.
+
+## Analytical limitations
+
+- Hospital counts do not measure beds, staffing, facility size, patient capacity, travel time, or quality of care.
+- Current data covers Government hospitals only. Do not describe it as all hospitals or test Total = Government + Private without those categories in the source.
+- If Total, Government, and Private rows become available, do not add Total to its component categories.
+- Regional alias mapping does not harmonize historical boundary differences. NIR is absent as a separate source region.
+- The current source has no 2025 observations; do not impute them.
+- Regional sums have not been independently reconciled with national source totals.
+- The source_page discrepancy (`Sep-28` in Bronze versus `9-28` in the dictionary) requires original-publication verification. Dropping the Silver provenance column does not resolve that source issue.
+- Spending comparisons show associations, not proof that spending caused hospital counts to change.
+
+## Related documentation
+
+- [Bronze findings](../../profiling/bronze/hospital/findings.md)
+- [Bronze data dictionary](../../profiling/bronze/hospital/data_dictionary.md)
+- [Crosswalk documentation](../crosswalk.md)
+
+Repository destination: `docs/silver/hospital.md`. Keep the revised executable SQL in the hospital Silver folder and update its repository reference if the notebook is replaced by a plain SQL file.
