@@ -1,4 +1,3 @@
-%sql
 -- Regional appropriations profiling 
 -- Profiled by: Razz
 

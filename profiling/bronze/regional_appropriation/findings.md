@@ -1,4 +1,3 @@
-%md
 # Regional Appropriations Profiling - Documentation and Results
 
 **Table:** `pondolens.dev_bronze.regional_appropriation`
