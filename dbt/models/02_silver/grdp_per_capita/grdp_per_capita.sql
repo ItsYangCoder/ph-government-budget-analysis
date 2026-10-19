@@ -1,9 +1,9 @@
 -- PondoLens GRDP per capita: Bronze -> Silver (2021-2025)
--- grdp_per_capita id starts at 100,000,000
+-- IDs begin at 100,000,001; existing matched IDs are preserved.
 -- Run as one Databricks SQL session; configure job max concurrent runs = 1.
 SET TIME ZONE 'UTC';
 
-DROP TABLE IF EXISTS pondolens.dev_silver.grdp_per_capita;
+CREATE SCHEMA IF NOT EXISTS pondolens.dev_silver;
 
 CREATE TABLE IF NOT EXISTS pondolens.dev_silver.grdp_per_capita (
   grdp_per_capita_id INT, region_code STRING, region_name STRING,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS pondolens.dev_silver.grdp_per_capita (
   geographic_level STRING, processing_run_id STRING, processed_at TIMESTAMP
 ) USING DELTA;
 
--- Canonical geography: preserve national row; exclude central office.
+-- Canonical geography: national and regional observations only.
 CREATE OR REPLACE TEMP VIEW grdp_region_map AS
 SELECT DISTINCT UPPER(TRIM(region_code)) AS region_code,
   UPPER(TRIM(region_name)) AS region_name,
@@ -19,7 +19,8 @@ SELECT DISTINCT UPPER(TRIM(region_code)) AS region_code,
 FROM pondolens.dev_silver.shared_region_crosswalk
 WHERE NULLIF(TRIM(region_code), '') IS NOT NULL
   AND NULLIF(TRIM(region_name), '') IS NOT NULL
-  AND UPPER(TRIM(region_code)) <> 'CO';
+  AND UPPER(TRIM(region_code)) NOT IN ('CO', 'NW')
+  AND (UPPER(TRIM(region_code)) = 'PHL' OR LOWER(TRIM(geographic_level)) = 'region');
 
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'Crosswalk has conflicting canonical region names')
 FROM (SELECT region_code FROM grdp_region_map GROUP BY region_code HAVING COUNT(*) > 1);
@@ -30,6 +31,7 @@ WITH labels AS (
   SELECT UPPER(TRIM(region_code)) AS region_code,
     REGEXP_REPLACE(UPPER(TRIM(source_region)), '[^A-Z0-9]', '') AS region_key
   FROM pondolens.dev_silver.shared_region_crosswalk
+  WHERE UPPER(TRIM(region_code)) IN (SELECT region_code FROM grdp_region_map)
   UNION ALL
   SELECT region_code, REGEXP_REPLACE(region_name, '[^A-Z0-9]', '') FROM grdp_region_map
   UNION ALL
@@ -39,6 +41,14 @@ SELECT DISTINCT region_key, region_code FROM labels WHERE region_key <> '';
 
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'Normalized GRDP region alias maps to multiple codes')
 FROM (SELECT region_key FROM grdp_region_aliases GROUP BY region_key HAVING COUNT(*) > 1);
+
+-- Reject malformed years before applying the supported-year filter.
+SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid GRDP source year; review Bronze input')
+FROM pondolens.dev_bronze.grdp_per_capita
+WHERE TRY_CAST(TRIM(CAST(year AS STRING)) AS DECIMAL(20,6)) IS NULL
+   OR TRY_CAST(TRIM(CAST(year AS STRING)) AS DECIMAL(20,6))
+      <> FLOOR(TRY_CAST(TRIM(CAST(year AS STRING)) AS DECIMAL(20,6)))
+   OR TRIM(CAST(year AS STRING)) NOT RLIKE '^[0-9]{4}$';
 
 -- Parse all source rows in scope, including both price bases.
 -- Keep current-price rows in Silver; filter price_basis = 2018 in Gold.
@@ -92,7 +102,8 @@ LEFT JOIN grdp_region_map m ON r.mapped_code = m.region_code;
 SELECT ASSERT_TRUE(COUNT(*) > 0, 'No GRDP records in 2021-2025 scope') FROM grdp_pc_stage;
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid GRDP source rows, crosswalk mapping, or price basis')
 FROM grdp_pc_stage
-WHERE region_code IS NULL OR region_name IS NULL OR year IS NULL
+WHERE region_code IS NULL OR NULLIF(TRIM(region_name), '') IS NULL OR year IS NULL
+  OR geographic_level IS NULL OR source_geographic_level IS NULL
   OR grdp_per_capita IS NULL OR grdp_per_capita <= 0
   OR price_basis IS NULL OR price_basis NOT IN (2018, year)
   OR (code_match IS NOT NULL AND name_match IS NOT NULL AND code_match <> name_match)
@@ -108,19 +119,12 @@ SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT STRUCT(year, region_code, price_bas
 
 SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT grdp_per_capita_id)
   AND COUNT(*) = COUNT(DISTINCT STRUCT(year, UPPER(REPLACE(TRIM(region_code), '-', '')), price_basis, geographic_level))
-  AND COUNT_IF(grdp_per_capita_id IS NULL OR grdp_per_capita_id < 100000001) = 0,
+  AND COALESCE(COUNT_IF(grdp_per_capita_id IS NULL OR grdp_per_capita_id < 100000001
+    OR year IS NULL OR NULLIF(TRIM(region_code), '') IS NULL
+    OR price_basis IS NULL OR price_basis NOT IN (2018, year)
+    OR geographic_level IS NULL OR geographic_level NOT IN ('region', 'national')), 0) = 0,
   'Invalid existing GRDP Silver IDs or business keys')
 FROM pondolens.dev_silver.grdp_per_capita;
-
--- Guard against accidentally replacing a complete year with a partial load.
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'GRDP stage has fewer than 80% of existing Silver rows for a year')
-FROM (
-  SELECT t.year, COUNT(*) AS old_rows, MAX(s.n) AS new_rows
-  FROM pondolens.dev_silver.grdp_per_capita t
-  JOIN (SELECT year, COUNT(*) n FROM grdp_pc_stage GROUP BY year) s ON t.year = s.year
-  GROUP BY t.year
-  HAVING MAX(s.n) < 0.8 * COUNT(*)
-);
 
 CREATE OR REPLACE TEMP VIEW grdp_pc_numbered AS
 WITH new_rows AS (
@@ -140,12 +144,12 @@ FROM new_rows n CROSS JOIN last_id l;
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'GRDP ID exceeds INT range')
 FROM grdp_pc_numbered WHERE new_id > 2147483647;
 
--- Include deletions only for years present in the validated source.
+-- Build one source row per validated key, preserving existing IDs.
 CREATE OR REPLACE TEMP VIEW grdp_pc_merge_source AS
 WITH source_rows AS (
   SELECT COALESCE(t.grdp_per_capita_id, CAST(n.new_id AS INT)) AS grdp_per_capita_id,
     s.region_code, s.region_name, s.year, s.grdp_per_capita, s.price_basis,
-    s.geographic_level, FALSE AS removed
+    s.geographic_level
   FROM grdp_pc_stage s
   LEFT JOIN pondolens.dev_silver.grdp_per_capita t
     ON s.year = t.year AND s.region_code = UPPER(REPLACE(TRIM(t.region_code), '-', ''))
@@ -153,21 +157,12 @@ WITH source_rows AS (
   LEFT JOIN grdp_pc_numbered n
     ON s.year = n.year AND s.region_code = n.region_code
     AND s.price_basis = n.price_basis AND s.geographic_level = n.geographic_level
-), deleted_rows AS (
-  SELECT t.grdp_per_capita_id, t.region_code, t.region_name, t.year,
-    t.grdp_per_capita, t.price_basis, t.geographic_level, TRUE AS removed
-  FROM pondolens.dev_silver.grdp_per_capita t
-  LEFT SEMI JOIN (SELECT DISTINCT year FROM grdp_pc_stage) y ON t.year = y.year
-  LEFT ANTI JOIN grdp_pc_stage s
-    ON t.year = s.year AND UPPER(REPLACE(TRIM(t.region_code), '-', '')) = s.region_code
-    AND t.price_basis = s.price_basis AND t.geographic_level = s.geographic_level
 )
-SELECT * FROM source_rows UNION ALL SELECT * FROM deleted_rows;
+SELECT * FROM source_rows;
 
 MERGE INTO pondolens.dev_silver.grdp_per_capita t
 USING grdp_pc_merge_source s ON t.grdp_per_capita_id = s.grdp_per_capita_id
-WHEN MATCHED AND s.removed THEN DELETE
-WHEN MATCHED AND NOT s.removed AND NOT (
+WHEN MATCHED AND NOT (
   t.region_code <=> s.region_code AND t.region_name <=> s.region_name
   AND t.grdp_per_capita <=> s.grdp_per_capita
 ) THEN UPDATE SET
@@ -175,7 +170,7 @@ WHEN MATCHED AND NOT s.removed AND NOT (
   t.grdp_per_capita = s.grdp_per_capita,
   t.processing_run_id = CONCAT('silver_grdp_pc_', DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyyyMMddHHmmss')),
   t.processed_at = CURRENT_TIMESTAMP()
-WHEN NOT MATCHED AND NOT s.removed THEN INSERT
+WHEN NOT MATCHED THEN INSERT
   (grdp_per_capita_id, region_code, region_name, year, grdp_per_capita,
    price_basis, geographic_level, processing_run_id, processed_at)
 VALUES (s.grdp_per_capita_id, s.region_code, s.region_name, s.year,
@@ -183,14 +178,19 @@ VALUES (s.grdp_per_capita_id, s.region_code, s.region_name, s.year,
   CONCAT('silver_grdp_pc_', DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyyyMMddHHmmss')),
   CURRENT_TIMESTAMP());
 
--- Compare multisets to detect missing, extra, or changed records (including duplicates).
+-- Reconcile every staged key; previously loaded keys outside this batch are retained.
 CREATE OR REPLACE TEMP VIEW grdp_pc_differences AS
 WITH expected AS (
   SELECT region_code, region_name, year, grdp_per_capita, price_basis, geographic_level
   FROM grdp_pc_stage
 ), actual AS (
   SELECT region_code, region_name, year, grdp_per_capita, price_basis, geographic_level
-  FROM pondolens.dev_silver.grdp_per_capita WHERE year BETWEEN 2021 AND 2025
+  FROM pondolens.dev_silver.grdp_per_capita t
+  WHERE EXISTS (
+    SELECT 1 FROM grdp_pc_stage s
+    WHERE s.year = t.year AND s.region_code = t.region_code
+      AND s.price_basis = t.price_basis AND s.geographic_level = t.geographic_level
+  )
 )
 SELECT * FROM (SELECT * FROM expected EXCEPT ALL SELECT * FROM actual)
 UNION ALL
