@@ -2,7 +2,7 @@
 
 - **Table:** `pondolens.dev_bronze.poverty_incidence`
 - **Source file:** `05_poverty_incidence_2021_2023_2025.xlsx` (PSA, Full Year Official Poverty Statistics)
-- **Queries:** `mia_poverty_incidence_profiling.sql`. Query numbers below (e.g. **Q2.1**) point to that file.
+- **Queries:** `profiling.sql`. Query numbers below (e.g. **Q2.1**) point to that file.
 
 This notebook explains what we found in the raw (Bronze) poverty table, organized by the 7 profiling requirements, and what the Silver table should do about each finding.
 
@@ -19,8 +19,8 @@ This notebook explains what we found in the raw (Bronze) poverty table, organize
 ## Key terms (simple version)
 - **Poverty threshold** — the minimum yearly income (per person) needed to buy basic food and non-food needs. Below this = poor.
 - **Poverty incidence** — the percentage of people (or families) who are poor. Example: 10.9% means about 11 in every 100 families are poor.
-- **Families vs population** — "families" counts households, "population" counts individual people. Poor families tend to be bigger, so the population rate is always higher.
-- **Coefficient of variation (CV)** — how shaky the estimate is (aka margin of error in %). CV above 10% = "use with caution".
+- **Families vs population** — "families" counts households, "population" counts individual people. The two rates use different denominators; compare them separately.
+- **Coefficient of variation (CV)** — standard error relative to the estimate, expressed as a percentage; it is not the margin of error. Apply source reliability guidance when interpreting it.
 - **Standard error (SE)** and **confidence interval (CI)** — the range where the true value likely falls (95% sure). CI ≈ estimate ± 1.96 × SE.
 - **pp (percentage points)** — the plain difference between two percentages. 15% vs 10% = 5 pp.
 
@@ -100,7 +100,7 @@ This notebook explains what we found in the raw (Bronze) poverty table, organize
 | district | 2 | 22 | 0 |
 | city | 4 | 8 | 0 |
 
-National and regional numbers are solid. **Most province, district and city numbers are shaky**, so be careful when ranking provinces.
+Review the source reliability flags and CV before comparing or ranking areas. Geographic level alone does not establish estimate reliability.
 
 **Estimate status: note codes (Q4.6).**
 
@@ -201,3 +201,7 @@ So neither column is consistently "the code" or "the name". **Don't use either o
 **Readiness check (Q7.2). Expected:** 644 rows, 0 duplicate keys, 0 unmapped regions, 0 missing estimates.
 
 **For Gold (`fact_regional_indicator`):** use only `geographic_level = 'region'` and `measure = 'families'` (18 regions × 3 years = 54 rows). In `dim_indicator` it can be `indicator = 'poverty'`, `measure_type = 'poverty_incidence_families'`, `unit = '% of families'`. Keep the national row separately as the benchmark. Poverty data only exists for 2021, 2023 and 2025, so budget years 2022 and 2024 have no poverty value. Don't fill them in.
+
+## Repository review
+
+Results above are contributor-reported observations for the profiled snapshot. Repository review parsed 35 Databricks SQL statements and confirmed that queries create only temporary views and read source data; it did not execute them against Databricks or independently verify the 4,508 source comparisons. Range comparisons are plausibility checks, not weighted reconciliation. The inline region list is for profiling preview; production Silver mapping should use the shared crosswalk. Proposed Gold selection remains subject to the team's analytical scope.
