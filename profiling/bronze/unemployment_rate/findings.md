@@ -28,17 +28,17 @@ Data profiling
 |--------|------|
 | Negros Island Region | 2024 to 2025 only |
 | Philippines | national observation mixed with regional observations |
-| NCR, CAR, Regions I–XIII | expected regional observations are present
+| NCR, CAR, Regions I–XIII | expected regional observations are present |
 
 - 10 nulls are at the city and province level, these are not relevant to BP/AP so it's okay
 
 ## 3. Uniqueness and duplicates
 
-- No duplicates at proposed key: year + region + unit + estimate_status
+- No duplicates reported at the regional candidate key: year + region + unit + estimate_status. Recheck indicator and geographic level when defining the final Silver key.
 
 ## 4. Validity checks
 
-- all unemployment rates are valid. Valid range 0 < unemployment rate < 100. 
+- all unemployment rates are valid. Accepted numeric range is 0–100 inclusive; numeric parseability and missingness are checked separately. 
 
 ## 5. Consistency and geographic standardization
 
@@ -53,7 +53,8 @@ Data profiling
 
 ## 7. Silver treatment proposal
 
-- Estimate status to select per year: 
+- Proposed estimate status to select per year (pending confirmation against source revisions):
+
 | Estimate status | Year |
 | ------ | ------|
 | Final | 2022 - 2024 |

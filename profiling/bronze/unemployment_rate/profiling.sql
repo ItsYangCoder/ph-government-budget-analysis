@@ -198,6 +198,9 @@ SELECT
     year,
     region,
     value,
+    unit,
+    indicator,
+    geographic_level,
     estimate_status,
     COUNT(*) AS duplicate_count
 
@@ -207,6 +210,9 @@ GROUP BY
     year,
     region,
     value,
+    unit,
+    indicator,
+    geographic_level,
     estimate_status
 
 HAVING COUNT(*) > 1
