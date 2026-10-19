@@ -18,12 +18,20 @@ USING DELTA;
 
 -- Get distinct uppercase region codes and names from the crosswalk.
 CREATE OR REPLACE TEMP VIEW population_region_map AS
-SELECT DISTINCT
-    UPPER(TRIM(region_code)) AS region_code,
-    UPPER(TRIM(region_name)) AS region_name
-FROM pondolens.dev_silver.shared_region_crosswalk
-WHERE NULLIF(TRIM(region_code), '') IS NOT NULL
-  AND NULLIF(TRIM(region_name), '') IS NOT NULL;
+SELECT region_code, region_name
+FROM (
+    SELECT
+        UPPER(TRIM(region_code)) AS region_code,
+        UPPER(TRIM(region_name)) AS region_name,
+        ROW_NUMBER() OVER (
+            PARTITION BY UPPER(TRIM(region_code))
+            ORDER BY LENGTH(TRIM(region_name)) DESC
+        ) AS rn
+    FROM pondolens.dev_silver.shared_region_crosswalk
+    WHERE NULLIF(TRIM(region_code), '') IS NOT NULL
+      AND NULLIF(TRIM(region_name), '') IS NOT NULL
+)
+WHERE rn = 1;
 
 -- Each region code must have one region name.
 SELECT ASSERT_TRUE(
