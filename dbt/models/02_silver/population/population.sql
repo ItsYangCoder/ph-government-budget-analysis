@@ -1,4 +1,4 @@
-%sql
+CREATE SCHEMA IF NOT EXISTS pondolens.dev_silver;
 -- Run with max 1 concurrent job; do not run manually while the job is running.
 
 CREATE TABLE IF NOT EXISTS pondolens.dev_silver.population (
@@ -182,10 +182,10 @@ typed AS (
         END AS age_group,
 
         INITCAP(sex_txt) AS sex,
-        TRY_CAST(year_txt AS DOUBLE) AS year_d,
-        TRY_CAST(age_min_txt AS DOUBLE) AS age_min_d,
-        TRY_CAST(age_max_txt AS DOUBLE) AS age_max_d,
-        TRY_CAST(population_txt AS DOUBLE) AS population_d
+        TRY_CAST(year_txt AS DECIMAL(38, 10)) AS year_d,
+        TRY_CAST(age_min_txt AS DECIMAL(38, 10)) AS age_min_d,
+        TRY_CAST(age_max_txt AS DECIMAL(38, 10)) AS age_max_d,
+        TRY_CAST(population_txt AS DECIMAL(38, 10)) AS population_d
     FROM trimmed
 ),
 
@@ -205,30 +205,31 @@ ranked AS (
 SELECT
     region_key,
     age_group,
-    CAST(age_min_d AS INT) AS age_min,
-    CAST(age_max_d AS INT) AS age_max,
+    TRY_CAST(age_min_d AS INT) AS age_min,
+    TRY_CAST(age_max_d AS INT) AS age_max,
     sex,
-    CAST(year_d AS INT) AS year,
-    CAST(population_d AS BIGINT) AS population,
+    TRY_CAST(year_d AS INT) AS year,
+    TRY_CAST(population_d AS BIGINT) AS population,
 
     -- Flag values that cannot be read as whole numbers.
     (
         year_txt IS NOT NULL
-        AND (year_d IS NULL OR year_d <> FLOOR(year_d))
+        AND (year_d IS NULL OR year_d <> FLOOR(year_d) OR TRY_CAST(year_d AS INT) IS NULL)
     )
     OR (
         age_min_txt IS NOT NULL
-        AND (age_min_d IS NULL OR age_min_d <> FLOOR(age_min_d))
+        AND (age_min_d IS NULL OR age_min_d <> FLOOR(age_min_d) OR TRY_CAST(age_min_d AS INT) IS NULL)
     )
     OR (
         age_max_txt IS NOT NULL
-        AND (age_max_d IS NULL OR age_max_d <> FLOOR(age_max_d))
+        AND (age_max_d IS NULL OR age_max_d <> FLOOR(age_max_d) OR TRY_CAST(age_max_d AS INT) IS NULL)
     )
     OR (
         population_txt IS NOT NULL
         AND (
             population_d IS NULL
             OR population_d <> FLOOR(population_d)
+            OR TRY_CAST(population_d AS BIGINT) IS NULL
         )
     ) AS has_invalid_number
 FROM ranked
@@ -259,6 +260,18 @@ FROM (
 
             CASE
                 WHEN c.has_invalid_number THEN 'invalid number'
+            END,
+
+            CASE WHEN c.population < 0 THEN 'negative population' END,
+            CASE
+                WHEN c.age_group = '85 and over'
+                     AND (c.age_min IS NULL OR c.age_min <> 85 OR c.age_max IS NOT NULL)
+                    THEN 'invalid open-ended age limits'
+                WHEN c.age_group NOT IN ('Total', '85 and over')
+                     AND (c.age_min IS NULL OR c.age_max IS NULL
+                          OR c.age_min <> TRY_CAST(SPLIT_PART(c.age_group, ' - ', 1) AS INT)
+                          OR c.age_max <> TRY_CAST(SPLIT_PART(c.age_group, ' - ', 2) AS INT))
+                    THEN 'age limits do not match age group'
             END,
 
             CASE
@@ -324,6 +337,18 @@ WHERE m.region_code <> 'PHL'
   AND c.sex = 'Both'
   AND c.age_group <> 'Total'
   AND c.year BETWEEN 2021 AND 2025;
+
+SELECT ASSERT_TRUE(COUNT(*) > 0, 'Population stage is empty; check ingestion and scope.')
+FROM population_stage;
+
+SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate or invalid natural keys in population target.')
+FROM (
+    SELECT region_code, year, age_group
+    FROM pondolens.dev_silver.population
+    GROUP BY region_code, year, age_group
+    HAVING COUNT(*) > 1 OR NULLIF(TRIM(region_code), '') IS NULL
+        OR year IS NULL OR NULLIF(TRIM(age_group), '') IS NULL
+) AS invalid_target_keys;
 
 -- Stop if different Bronze labels produce the same Silver key.
 SELECT ASSERT_TRUE(
@@ -416,8 +441,7 @@ SELECT
     s.age_max,
     s.sex,
     s.year,
-    s.population,
-    FALSE AS removed
+    s.population
 FROM population_stage AS s
 INNER JOIN pondolens.dev_silver.population AS t
     ON s.region_code = t.region_code
@@ -435,56 +459,30 @@ SELECT
     age_max,
     sex,
     year,
-    population,
-    FALSE AS removed
+    population
 FROM population_numbered
-
-UNION ALL
-
--- Remove Silver records missing from Bronze for years in this load.
-SELECT
-    t.population_id,
-    t.region_code,
-    t.region_name,
-    t.age_group,
-    t.age_min,
-    t.age_max,
-    t.sex,
-    t.year,
-    t.population,
-    TRUE AS removed
-FROM pondolens.dev_silver.population AS t
-LEFT SEMI JOIN (
-    SELECT DISTINCT year
-    FROM population_stage
-) AS y
-    ON t.year = y.year
-LEFT ANTI JOIN population_stage AS s
-    ON t.region_code = s.region_code
-    AND t.year = s.year
-    AND t.age_group = s.age_group;
+;
 
 MERGE INTO pondolens.dev_silver.population AS t
 USING population_merge_source AS s
 ON t.population_id = s.population_id
 
-WHEN MATCHED AND s.removed
-THEN DELETE
-
-WHEN MATCHED AND NOT s.removed AND NOT (
+WHEN MATCHED AND NOT (
     t.region_name <=> s.region_name
     AND t.age_min <=> s.age_min
     AND t.age_max <=> s.age_max
     AND t.population <=> s.population
+    AND t.sex <=> s.sex
 )
 THEN UPDATE SET
     t.region_name = s.region_name,
     t.age_min = s.age_min,
     t.age_max = s.age_max,
     t.population = s.population,
+    t.sex = s.sex,
     t._processed_at = CURRENT_TIMESTAMP()
 
-WHEN NOT MATCHED AND NOT s.removed
+WHEN NOT MATCHED
 THEN INSERT (
     population_id,
     region_code,

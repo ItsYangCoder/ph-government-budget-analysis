@@ -21,7 +21,7 @@
 - Stops when rejected rows, conflicting mappings, duplicate mapped keys or invalid IDs are found.
 - Checks if a year being loaded has fewer than 80% of its existing Silver rows.
 - Inserts new records and updates changed region names, age limits or population values.
-- Removes Silver records missing from the prepared data, but only for years being loaded.
+- Preserves previously loaded records while inserting new keys and updating changed values.
 - Updates `_processed_at` only when a record is inserted or changed.
 
 
@@ -59,3 +59,11 @@
 - Accepted MIMAROPA labels include `MIMAROPA`, `MIMAROPA REGION`, `IV-B`, `REGION IV-B (MIMAROPA)` and `REGION IV-B (MIMAROPA REGION)`.
 - The final code and name always come from the crosswalk.
 - The DQ results show 17 distinct region codes, with all saved region pairs matching the crosswalk.
+
+## Execution and validation
+
+Run the full script in one SQL session after successful ingestion and crosswalk setup, with maximum concurrent runs set to 1. Stop on the first failed assertion. This multi-statement Databricks SQL script is not a dbt model.
+
+The load rejects negative population, noninteger or overflowing numbers, inconsistent age limits, empty in-scope stages, and duplicate target natural keys. Missing population is retained as NULL; the open-ended 85-and-over group requires age_min = 85 and age_max = NULL. Numeric parsing uses decimal precision before integer conversion.
+
+The 1,530-row result above is the contributor-reported baseline, not an execution performed by repository CI. Verify first load, unchanged rerun, correction, and new-key insertion in Databricks before scheduling. Additional records within 2021–2025 are supported; new years require extending the explicit filter. The 80% check is a coverage heuristic, not a completeness guarantee.
