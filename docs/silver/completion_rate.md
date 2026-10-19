@@ -5,7 +5,7 @@ Updated: 19 October 2026 (Asia/Manila)
 Source: `pondolens.dev_bronze.completion_rate`  
 Reference: `pondolens.dev_silver.shared_region_crosswalk`  
 Target: `pondolens.dev_silver.completion_rate`  
-SQL: `sql/silver/completion_rate.sql`  
+SQL: `dbt/models/02_silver/completion_rate/completion_rate.sql`  
 Scope: source year labels 2021–2025
 
 ## Purpose and grain
@@ -161,8 +161,8 @@ These results validate the transformation stage. Final execution of the latest l
 
 ## Related files
 
-- [findings.md](#file-2743717085657363)
-- [data_dictionary.md](#file-2743717085657362)
-- [completion_rate.sql](#file-2743717085656925)
+- [Bronze findings](../../profiling/bronze/completion_rate/findings.md)
+- [Bronze data dictionary](../../profiling/bronze/completion_rate/data_dictionary.md)
+- [Completion rate SQL](../../dbt/models/02_silver/completion_rate/completion_rate.sql)
 
 Repository destination: `docs/silver/completion_rate.md`.
