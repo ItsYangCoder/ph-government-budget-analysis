@@ -1,32 +1,25 @@
 -- Completion Rate Silver
--- Scope: 2021–2025
--- IDs start at 8,000,001.
--- Requires complete Bronze ingestion and one concurrent writer.
+-- Scope: 2021–2025. IDs start at 8,000,001.
+-- Run after complete Bronze ingestion, with one concurrent target writer.
+-- Crosswalk: source_region, region_code, region_name,
+-- valid_from_year, valid_to_year, source_code, geographic_level.
 
 CREATE SCHEMA IF NOT EXISTS pondolens.dev_silver;
 
--- Validate crosswalk uniqueness.
-SELECT assert_true(
-    COUNT(*) = 0,
-    'Duplicate region aliases in shared_region_crosswalk.'
-)
+-- Source rows must be unique before alias resolution.
+SELECT assert_true(COUNT(*) = 0, 'Duplicate completion rate Bronze keys.')
 FROM (
-    SELECT UPPER(TRIM(source_region_name))
-    FROM pondolens.dev_silver.shared_region_crosswalk
-    GROUP BY UPPER(TRIM(source_region_name))
+    SELECT indicator, geolocation, level_of_education, sex
+    FROM pondolens.dev_bronze.completion_rate
+    GROUP BY indicator, geolocation, level_of_education, sex
     HAVING COUNT(*) > 1
 );
 
--- Transform Bronze into the Silver grain.
-CREATE OR REPLACE TEMP VIEW completion_rate_silver_stage AS
+CREATE OR REPLACE TEMP VIEW completion_rate_prepared AS
 WITH unpivoted AS (
     SELECT
-        indicator,
-        geolocation,
-        level_of_education,
-        sex,
-        year,
-        TRIM(raw_value) AS raw_value
+        indicator, geolocation, level_of_education, sex,
+        year, TRIM(raw_value) AS raw_value
     FROM pondolens.dev_bronze.completion_rate
     LATERAL VIEW STACK(
         5,
@@ -36,63 +29,130 @@ WITH unpivoted AS (
         2024, c_2024,
         2025, c_2025
     ) years AS year, raw_value
-),
-prepared AS (
-    SELECT
-        *,
-        TRIM(
-            REGEXP_REPLACE(
-                REGEXP_REPLACE(TRIM(geolocation), '^[.]+', ''),
-                '[ ]+[0-9]+/[ ]*$',
-                ''
-            )
-        ) AS mapping_label,
-        TRY_CAST(raw_value AS DECIMAL(6, 3)) AS parsed_rate
+), labels AS (
+    SELECT *,
+        UPPER(TRIM(REGEXP_REPLACE(
+            REGEXP_REPLACE(TRIM(geolocation), '^[.]+', ''),
+            '[ ]+[0-9]+/[ ]*$', ''
+        ))) AS mapping_label
     FROM unpivoted
 )
-SELECT
-    p.year,
-    c.region_code,
-    c.region_name,
+SELECT *,
+    REGEXP_REPLACE(mapping_label, '[^A-Z0-9]', '') AS alias_key,
     CASE
-        WHEN c.region_code = 'PHL' THEN 'national'
-        WHEN c.region_code IS NOT NULL THEN 'region'
+        WHEN mapping_label = 'PHILIPPINES' THEN 'PHL'
+        WHEN mapping_label IN ('MIMAROPA', 'MIMAROPA REGION') THEN 'IVB'
+        WHEN mapping_label RLIKE '^REGION [IVX]+[ -]?[AB]?$'
+            THEN REGEXP_REPLACE(
+                REGEXP_REPLACE(mapping_label, '^REGION ', ''),
+                '[^A-Z0-9]', ''
+            )
+        WHEN mapping_label RLIKE '[(](NCR|CAR|BARMM|NIR)[)]$'
+            THEN REGEXP_EXTRACT(
+                mapping_label, '[(](NCR|CAR|BARMM|NIR)[)]$', 1
+            )
+    END AS code_hint,
+    raw_value IS NULL OR raw_value IN ('', '..', '...') AS is_missing,
+    TRY_CAST(raw_value AS DECIMAL(6,3)) AS parsed_rate
+FROM labels;
+
+-- Case/punctuation variants may agree on the same mapping.
+-- Prefer an active exact alias, followed by an active code match.
+-- Missing observations may retain a known region outside its alias period;
+-- numeric observations must have a mapping applicable to their year.
+CREATE OR REPLACE TEMP VIEW completion_rate_mapping_candidates AS
+WITH crosswalk AS (
+    SELECT DISTINCT
+        REGEXP_REPLACE(UPPER(TRIM(source_region)), '[^A-Z0-9]', '') AS alias_key,
+        UPPER(TRIM(region_code)) AS region_code,
+        MAX(TRIM(region_name)) OVER (PARTITION BY UPPER(TRIM(region_code))) AS region_name,
+        valid_from_year,
+        valid_to_year,
+        LOWER(TRIM(geographic_level)) AS geographic_level
+    FROM pondolens.dev_silver.shared_region_crosswalk
+    WHERE NULLIF(TRIM(source_region), '') IS NOT NULL
+      AND NULLIF(TRIM(region_code), '') IS NOT NULL
+      AND NULLIF(TRIM(region_name), '') IS NOT NULL
+      AND (valid_from_year IS NULL OR valid_to_year IS NULL
+           OR valid_from_year <= valid_to_year)
+), candidates AS (
+    SELECT p.*,
+        c.region_code,
+        c.region_name,
+        CASE
+            WHEN p.year BETWEEN COALESCE(c.valid_from_year, 1900)
+                            AND COALESCE(c.valid_to_year, 9999)
+                THEN CASE WHEN p.alias_key = c.alias_key THEN 1 ELSE 2 END
+            ELSE CASE WHEN p.alias_key = c.alias_key THEN 3 ELSE 4 END
+        END AS match_priority
+    FROM completion_rate_prepared AS p
+    LEFT JOIN crosswalk AS c
+        ON (p.alias_key = c.alias_key OR p.code_hint = c.region_code)
+       AND (c.region_code = 'PHL' OR c.geographic_level = 'region'
+            OR (c.geographic_level IS NULL
+                AND c.region_code NOT IN ('CO', 'NW')))
+       AND (
+           p.year BETWEEN COALESCE(c.valid_from_year, 1900)
+                      AND COALESCE(c.valid_to_year, 9999)
+           OR p.is_missing
+       )
+)
+SELECT *,
+    DENSE_RANK() OVER (
+        PARTITION BY indicator, geolocation, level_of_education, sex, year
+        ORDER BY match_priority
+    ) AS match_rank
+FROM candidates;
+
+-- Do not choose arbitrarily between conflicting best matches.
+SELECT assert_true(
+    COUNT(*) = 0,
+    'Ambiguous completion rate mapping: review crosswalk codes/names.'
+)
+FROM (
+    SELECT indicator, geolocation, level_of_education, sex, year
+    FROM completion_rate_mapping_candidates
+    WHERE match_rank = 1 AND region_code IS NOT NULL
+    GROUP BY indicator, geolocation, level_of_education, sex, year
+    HAVING COUNT(DISTINCT STRUCT(region_code, region_name)) > 1
+);
+
+-- Collapse only equivalent mapping candidates, not duplicate source records.
+CREATE OR REPLACE TEMP VIEW completion_rate_silver_stage AS
+SELECT DISTINCT
+    year,
+    region_code,
+    region_name,
+    CASE
+        WHEN region_code = 'PHL' THEN 'national'
+        WHEN region_code IS NOT NULL THEN 'region'
     END AS geographic_level,
-
-    TRIM(
-        REGEXP_REPLACE(p.indicator, '[ ]+[0-9]+/[ ]*$', '')
-    ) AS indicator,
-
-    TRIM(
-        REGEXP_REPLACE(
-            p.level_of_education,
-            '[ ]+[0-9]+/[ ]*$',
-            ''
-        )
-    ) AS level_of_education,
-
-    TRIM(p.sex) AS sex,
-    p.parsed_rate AS completion_rate,
+    TRIM(REGEXP_REPLACE(indicator, '[ ]+[0-9]+/[ ]*$', '')) AS indicator,
+    TRIM(REGEXP_REPLACE(
+        level_of_education, '[ ]+[0-9]+/[ ]*$', ''
+    )) AS level_of_education,
+    TRIM(sex) AS sex,
+    parsed_rate AS completion_rate,
     'percent' AS unit,
-    p.raw_value,
-
+    raw_value,
     CASE
-        WHEN p.raw_value IS NULL OR p.raw_value = ''
-            THEN 'missing_blank'
-        WHEN p.raw_value = '..'
-            THEN 'source_marker_two_dots'
-        WHEN p.raw_value = '...'
-            THEN 'source_marker_three_dots'
-        WHEN p.parsed_rate IS NULL
-            THEN 'invalid_numeric'
-        WHEN p.parsed_rate < 0 OR p.parsed_rate > 100
-            THEN 'invalid_range'
+        WHEN raw_value IS NULL OR raw_value = '' THEN 'missing_blank'
+        WHEN raw_value = '..' THEN 'source_marker_two_dots'
+        WHEN raw_value = '...' THEN 'source_marker_three_dots'
+        WHEN parsed_rate IS NULL THEN 'invalid_numeric'
+        WHEN parsed_rate < 0 OR parsed_rate > 100 THEN 'invalid_range'
         ELSE 'available'
     END AS value_status
-FROM prepared AS p
-LEFT JOIN pondolens.dev_silver.shared_region_crosswalk AS c
-    ON UPPER(p.mapping_label)
-        = UPPER(TRIM(c.source_region_name));
+FROM completion_rate_mapping_candidates
+WHERE match_rank = 1;
+
+-- Mapping must preserve every source observation exactly once.
+SELECT assert_true(
+    (SELECT COUNT(*) FROM completion_rate_silver_stage)
+        = (SELECT COUNT(*) FROM completion_rate_prepared),
+    'Region mapping changed the completion rate observation count.'
+);
+
 
 -- Validate source data before writing.
 SELECT assert_true(
@@ -355,6 +415,3 @@ VALUES (
     source.processed_at
 )
 
-WHEN NOT MATCHED BY SOURCE
-    AND target.year BETWEEN 2021 AND 2025
-THEN DELETE;

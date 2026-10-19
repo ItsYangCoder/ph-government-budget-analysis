@@ -10,9 +10,11 @@ Scope: source year labels 2021–2025
 
 ## Purpose and grain
 
-Standardize education completion percentages by year, location, education level, and sex. Completion rates are percentages, not graduate headcounts. The official denominator, school-year interpretation, and source footnotes still require verification.
+Standardize education completion percentages by year, location, education level, and sex.
 
-One row represents **indicator × year × region_code × level_of_education × sex**. This is the natural key. `completion_rate_id` is the surrogate identifier.
+One row represents **indicator × year × region_code × level_of_education × sex**. This combination is the natural key. `completion_rate_id` is the surrogate identifier.
+
+Completion rates are percentages, not graduate headcounts. Interpret the denominator, reference period, and footnotes using the official source publication.
 
 ## Output data dictionary
 
@@ -30,11 +32,11 @@ One row represents **indicator × year × region_code × level_of_education × s
 | unit | STRING | percent. |
 | raw_value | STRING | Trimmed source measure text, including missing markers. |
 | value_status | STRING | Availability or validation classification of the measure. |
-| processed_at | TIMESTAMP | Silver processing timestamp; refreshed for each matched row on every successful load. |
+| processed_at | TIMESTAMP | Silver processing timestamp assigned to inserted and matched records. |
 
-`processed_at` is the only audit field. Silver does not retain `source_*` lineage columns or original footnoted dimension labels. Original records and ingestion metadata remain in Bronze. Without a source run/version reference in Silver, exact reconstruction of a past Silver row requires separately retained source versions or execution records.
+`processed_at` is the only audit field in Silver. Original records and ingestion metadata remain in Bronze.
 
-`raw_value` and `value_status` describe measure availability; they are not ingestion lineage fields.
+`raw_value` and `value_status` preserve measure availability and support data quality checks.
 
 ## Value statuses
 
@@ -42,50 +44,60 @@ One row represents **indicator × year × region_code × level_of_education × s
 |---|---|
 | available | Numeric percentage within 0–100. |
 | missing_blank | Source measure is NULL or blank. |
-| source_marker_two_dots | Source text is `..`; official marker meaning is pending verification. |
-| source_marker_three_dots | Source text is `...`; official marker meaning is pending verification. |
+| source_marker_two_dots | Source text is `..`; interpretation follows the source publication. |
+| source_marker_three_dots | Source text is `...`; interpretation follows the source publication. |
 | invalid_numeric | Unrecognized text or failed decimal conversion; blocks the load. |
 | invalid_range | Parsed measure outside 0–100; blocks the load. |
 
-Recognized missing observations remain in Silver with NULL measures. Invalid statuses may appear in staging but must not be loaded by this script.
+Recognized missing observations remain in Silver with NULL measures. Missing values are never converted to zero.
+
+Invalid statuses may appear in staging but must not be loaded into the target.
 
 ## Transformation rules
 
 1. Unpivot `c_2021`–`c_2025` into year and raw_value using STACK, preserving missing observations.
-2. Trim measure text and cast numeric values to DECIMAL(6,3). Keep the percentage scale; do not divide by 100.
-3. For region matching, strip leading hierarchy dots and trailing numeric footnote references from geolocation.
-4. Match the prepared label to the shared crosswalk using uppercase and trim normalization. Copy region_code and region_name; fail for unmatched locations.
-5. Remove trailing numeric footnote references from indicator and education-level display labels. This label cleanup does not resolve the footnotes' meanings.
-6. Classify Philippines as national and other mapped locations as region. Preserve education and sex categories separately.
-7. Assign or preserve IDs, then record processed_at during the load.
+2. Trim measure text and cast numeric values to DECIMAL(6,3). Keep the percentage scale without dividing by 100.
+3. Remove leading hierarchy dots and trailing numeric footnotes from geolocation for region matching.
+4. Normalize region aliases into uppercase alphanumeric keys and derive code hints for recognized labels.
+5. Resolve geography using the updated crosswalk:
+   - Prefer an exact alias valid for the observation year.
+   - Otherwise, use a recognized region code valid for that year.
+   - For missing measures, allow a known mapping outside its validity interval to preserve source placeholders.
+6. Collapse equivalent mapping candidates and block conflicting best matches.
+7. Copy the standardized region_code and region_name from the crosswalk.
+8. Remove trailing numeric footnotes from indicator and education-level labels.
+9. Classify Philippines as national and other mapped locations as region.
+10. Assign or preserve IDs and record processed_at during loading.
 
-The year list is explicit. Additional observations and revised values within 2021–2025 are supported. Adding 2026 or later requires extending the SQL year list.
+The crosswalk uses `source_region`, `region_code`, `region_name`, validity years, and `geographic_level`. The transformation does not filter by `source_code`.
+
+The year list is explicit. Additional observations and revised values within 2021–2025 are supported. Adding another year requires extending the SQL year list.
 
 ## IDs and load behavior
 
 - The initial ID base is 8,000,000; the first assigned ID is 8,000,001.
 - Existing matched natural keys retain their IDs.
-- Unassigned keys receive IDs above the current target maximum using ROW_NUMBER.
-- In an initially unassigned 855-key snapshot, the expected range is 8,000,001–8,000,855. Final assigned-ID results have not yet been provided for verification.
-- This is single-writer allocation, not a durable sequence. Deleting the highest IDs can allow those numbers to be reused. A deleted key that reappears is not guaranteed its former ID. Do not use these IDs as permanent historical identities across deletion/reinsertion without a persistent key registry.
+- New keys receive IDs above the current target maximum.
+- Sequential allocation requires one concurrent writer.
+- Routine refreshes preserve the target table and existing identifiers.
 
 | Source/target situation | Action |
 |---|---|
 | Natural key exists in both | Update attributes and processed_at; preserve ID. |
 | Natural key exists only in source | Insert with a newly allocated ID. |
-| Target key is absent from source and target year is 2021–2025 | Delete from Silver. |
-| Target row is outside 2021–2025 | Outside the deletion clause's scope. |
-| Source location has no mapping or a rate is invalid | Fail before the data MERGE. |
+| Existing record is absent from the current source | Preserve the previously loaded record. |
+| Missing measure becomes available | Update the existing record using the same ID. |
+| Source location has no mapping or a rate is invalid | Fail validation before the data MERGE. |
 
-Deletion assumes a complete, authoritative Bronze snapshot. The nonempty-source validation does not establish completeness. A partial but nonempty source can cause unintended deletions. Verify ingestion success and source coverage before unattended deletion runs; do not use this deletion behavior for incremental source batches.
+Matched rows receive a refreshed processed_at on each successful run, including when business values are unchanged.
 
-Matched rows are updated on reruns even when business values are unchanged, so processed_at changes. The script reads the current source snapshot each time; it is not a new-record-only transformation.
+The script processes the current source within its configured year scope. It does not rely on an ingestion watermark.
 
 ## Target creation and schema cleanup
 
-The SQL creates the schema and target table when absent. It adds completion_rate_id if upgrading the earlier table version without that field.
+The SQL creates the schema and target table when absent. It adds completion_rate_id when upgrading an earlier table version without that field.
 
-For the earlier wide Silver schema, the script enables Delta name-based column mapping and removes these columns when present:
+For earlier Silver versions, the script enables Delta name-based column mapping and removes these legacy columns when present:
 
 - source_indicator
 - source_geolocation
@@ -96,37 +108,42 @@ For the earlier wide Silver schema, the script enables Delta name-based column m
 - source_ingestion_run_id
 - source_ingested_at
 
-This is a schema-level removal; existing IDs and remaining columns are retained. Old Delta versions and physical files can retain dropped values until separately managed through normal retention procedures. Column mapping can upgrade table protocol requirements; downstream readers must support the feature.
+Existing IDs and remaining columns are retained. Source records and ingestion metadata remain available in Bronze.
 
-The script does not migrate arbitrary incompatible schema changes. Schema changes and the data MERGE are separate operations, so an error can occur after schema cleanup has succeeded.
+The script does not migrate arbitrary incompatible schemas. Schema maintenance and the data MERGE are separate operations; a successful schema change may remain if a later statement fails.
 
 ## Validation gates
 
 The SQL checks:
 
-- No duplicate crosswalk aliases after uppercase/trim normalization.
+- Unique Bronze dimension combinations before unpivoting.
+- No conflicting best crosswalk matches.
+- Preservation of observation count after mapping.
 - A nonempty source stage.
 - Required mapped region fields and indicator values.
 - Expected education levels and sex categories.
-- No unexpected numeric text or rates outside 0–100.
-- Unique natural keys in the stage and existing target.
+- No unexpected numeric text or percentages outside 0–100.
+- Unique natural keys in staging and the existing target.
 - Existing non-null IDs are unique and greater than 8,000,000.
-- Legacy target rows without IDs are present in the stage so IDs can be assigned.
+- Legacy target rows without IDs are present in staging for ID assignment.
 
-Missing markers are allowed. Source lineage completeness is not checked by the revised Silver script because lineage columns are no longer selected. Source completeness, official metadata verification, and source-total reconciliation require separate checks.
+Recognized missing markers are accepted.
+
+Source completeness and ingestion lineage quality must be checked upstream. Official metadata verification and source reconciliation remain separate validation activities.
 
 ## Recorded validation results
 
-Rhea supplied these Databricks results for the transformation stage on 19 October 2026:
+The supplied profiling and transformation results show:
 
 | Check | Observed result |
 |---|---:|
-| Total staged rows | 855 |
+| Bronze rows | 171 |
+| Silver observations | 855 |
 | Unmapped rows | 0 |
 | Numeric rates | 657 |
 | Missing rates | 198 |
 | Invalid rates | 0 |
-| Duplicate natural keys | 0 |
+| Duplicate natural keys in the reported stage | 0 |
 | Mapped source locations | 19 |
 
 | Year | Available | Two-dot marker | Three-dot marker |
@@ -137,27 +154,53 @@ Rhea supplied these Databricks results for the transformation stage on 19 Octobe
 | 2024 | 171 | 0 | 0 |
 | 2025 | 0 | 0 | 171 |
 
-The 27 two-dot observations all belong to NIR in 2021–2023. Counts include national records and all sex categories. They describe the tested snapshot, not fixed limits for future valid additions.
+The 27 two-dot observations belong to NIR in 2021–2023. Counts include national records and all sex categories.
 
-These results validate the transformation stage. Final execution of the latest lineage-removal script, target schema/counts, ID allocation, repeat-run behavior, and update/insert/delete behavior have not yet been supplied as execution evidence.
+The supplied target output on 19 October 2026 contains:
+
+| Check | Observed result |
+|---|---|
+| Output records | 855 |
+| First ID | 8,000,001 |
+| Last ID | 8,000,855 |
+| Processing timestamp | 2026-10-19T11:30:49.814Z |
+| National classification | PHL → national |
+| Missing observations | Preserved with NULL measures and source statuses |
+
+These results describe the supplied snapshot. They are not fixed limits for future valid additions.
+
+Rerun behavior, controlled updates, new-key insertion, and failure recovery require separate acceptance checks before unattended scheduling.
 
 ## Job execution
 
-1. Run after successful, complete Bronze ingestion and crosswalk maintenance.
-2. Execute all SQL statements in order and stop on the first error.
-3. Set Job maximum concurrent runs to 1. Avoid concurrent manual writers and other jobs writing this target.
-4. Prevent overlapping ingestion and crosswalk changes while Silver runs: the temporary view is evaluated against its underlying tables.
-5. Validate final target schema, natural-key/ID uniqueness, counts, missingness, and data reconciliation after deployment. Test reruns and controlled source changes before unattended scheduling.
+1. Run after successful Bronze ingestion and crosswalk maintenance.
+2. Execute all SQL statements in order within the same session.
+3. Stop execution on the first error.
+4. Set Job maximum concurrent runs to 1.
+5. Prevent overlapping ingestion, crosswalk changes, and other target writers during execution.
+6. Check final schema, natural-key and ID uniqueness, year coverage, missingness, and source reconciliation.
+7. Retain validation outputs with Job run evidence.
+
+Before scheduling, verify that:
+
+- An unchanged rerun preserves IDs and row count.
+- A corrected measure updates the existing record.
+- A new natural key is inserted once.
+- Previously loaded records remain available when absent from the current source.
+- Invalid input blocks the merge.
+
+When a run fails, inspect the failed assertion, correct the responsible source or mapping, and rerun the complete script. Preserve existing target identifiers.
 
 ## Analytical limitations
 
-- The profiled source has no numeric 2025 values. Do not replace missing rates with zero or carry forward 2024.
+- The profiled source has no numeric 2025 values. Do not replace missing rates with zero or carry forward 2024 values.
 - NIR measures are missing in 2021–2023. Region-name mapping does not harmonize historical boundaries.
-- For overall comparisons, choose Both Sexes and a specific education level. Do not add aggregate and sex-specific percentages.
-- Do not sum completion percentages or average regional rates into a national rate without valid denominator weights. Use supplied national observations.
+- For overall comparisons, choose Both Sexes and a specific education level.
+- Do not combine aggregate and sex-specific percentages as additive measures.
+- Do not sum completion percentages or derive a national rate from regional averages without valid denominator weights. Use supplied national observations.
 - Budget joins must account for education and sex breakdowns to avoid repeating budget amounts.
-- Spending comparisons are descriptive associations, not proof of causation.
-- Verify the official indicator definition, denominator, year-to-school-year interpretation, marker meanings, and source footnotes before final analytical interpretation.
+- Spending comparisons describe associations and do not establish causation.
+- Verify the official indicator definition, denominator, reference period, marker meanings, and footnotes before final analytical interpretation.
 
 ## Related files
 
