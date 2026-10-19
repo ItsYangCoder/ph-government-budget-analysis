@@ -1,4 +1,8 @@
-%sql
+-- Population: Bronze profiling
+-- Assigned to: Razzelle Boreros
+-- Documented by: Razzelle Boreros
+-- Run in one SQL session. Stored Bronze records are unchanged.
+
 -- 1. Prepare text, numbers and dates for checking.
 CREATE OR REPLACE TEMP VIEW population_profile AS
 SELECT
@@ -6,10 +10,10 @@ SELECT
     UPPER(REGEXP_REPLACE(TRIM(region_name), r'\s+', ' ')) AS region_key,
     UPPER(TRIM(age_group)) AS age_key,
     UPPER(TRIM(sex)) AS sex_key,
-    TRY_CAST(REPLACE(TRIM(year), ',', '') AS DOUBLE) AS year_num,
-    TRY_CAST(REPLACE(TRIM(age_min), ',', '') AS DOUBLE) AS age_min_num,
-    TRY_CAST(REPLACE(TRIM(age_max), ',', '') AS DOUBLE) AS age_max_num,
-    TRY_CAST(REPLACE(TRIM(population), ',', '') AS DOUBLE) AS population_num,
+    TRY_CAST(REPLACE(TRIM(year), ',', '') AS DECIMAL(38, 10)) AS year_num,
+    TRY_CAST(REPLACE(TRIM(age_min), ',', '') AS DECIMAL(38, 10)) AS age_min_num,
+    TRY_CAST(REPLACE(TRIM(age_max), ',', '') AS DECIMAL(38, 10)) AS age_max_num,
+    TRY_CAST(REPLACE(TRIM(population), ',', '') AS DECIMAL(38, 10)) AS population_num,
     TRY_CAST(SUBSTRING(TRIM(reference_date), 1, 10) AS DATE) AS reference_day
 FROM pondolens.dev_bronze.population;
 
@@ -69,7 +73,7 @@ SELECT
     TRIM(raw_value) AS raw_value,
     raw_value IS NULL
         OR LOWER(TRIM(raw_value)) IN ('', 'null') AS is_missing,
-    TRY_CAST(REPLACE(TRIM(raw_value), ',', '') AS DOUBLE) AS numeric_value
+    TRY_CAST(REPLACE(TRIM(raw_value), ',', '') AS DECIMAL(38, 10)) AS numeric_value
 FROM pondolens.dev_bronze.population
 LATERAL VIEW STACK(
     20,
@@ -100,8 +104,7 @@ WITH checked AS (
         *,
         field IN ('year', 'age_min', 'age_max', 'population') AS is_numeric,
         numeric_value IS NOT NULL
-            AND NOT ISNAN(numeric_value)
-            AND ABS(numeric_value) < CAST('Infinity' AS DOUBLE) AS is_finite
+            AND numeric_value IS NOT NULL AS is_finite
     FROM population_values
 )
 SELECT
@@ -180,14 +183,12 @@ SELECT
     COUNT(*) AS total_rows,
     COUNT_IF(
         year_num IS NULL
-        OR ISNAN(year_num)
-        OR year_num NOT BETWEEN 1 AND 9999
+                OR year_num NOT BETWEEN 1 AND 9999
         OR year_num <> FLOOR(year_num)
     ) AS invalid_years,
     COUNT_IF(
         population_num IS NULL
-        OR ISNAN(population_num)
-        OR population_num < 0
+                OR population_num < 0
         OR population_num <> FLOOR(population_num)
         OR TRY_CAST(population_num AS BIGINT) IS NULL
     ) AS invalid_population,
@@ -299,6 +300,7 @@ ORDER BY l.check_name;
 
 -- 8. Check regional coverage and compare regional sums with Philippines totals for 2021–2025.
 -- Use all ages (TOTAL) and both sexes (BOTH) to avoid double counting.
+-- Expected regions come from this snapshot, not an independent reference list.
 WITH years AS (
     SELECT EXPLODE(SEQUENCE(2021, 2025)) AS year
 ),
@@ -314,8 +316,7 @@ totals AS (
         COUNT(*) AS row_count,
         COUNT_IF(
             population_num IS NOT NULL
-            AND NOT ISNAN(population_num)
-            AND population_num >= 0
+                        AND population_num >= 0
             AND population_num = FLOOR(population_num)
             AND TRY_CAST(population_num AS BIGINT) IS NOT NULL
         ) AS valid_population_rows,
@@ -367,3 +368,34 @@ LEFT JOIN totals n
     ON y.year = n.year_num
    AND n.region_key = 'PHILIPPINES'
 ORDER BY y.year;
+
+-- 9. Check age bounds independently of whether they parse as numbers.
+SELECT COUNT_IF(
+    (age_key = 'TOTAL' AND (age_min_num IS NOT NULL OR age_max_num IS NOT NULL))
+    OR (age_key = '85 AND OVER' AND (age_min_num IS NULL OR age_min_num <> 85
+        OR NULLIF(TRIM(age_max), '') IS NOT NULL
+           AND LOWER(TRIM(age_max)) <> 'null'))
+    OR (age_key NOT IN ('TOTAL', '85 AND OVER') AND (
+        age_min_num IS NULL OR age_max_num IS NULL
+        OR age_min_num < 0 OR age_max_num < age_min_num
+        OR age_min_num <> FLOOR(age_min_num)
+        OR age_max_num <> FLOOR(age_max_num)
+        OR age_key <> CONCAT(CAST(CAST(age_min_num AS INT) AS STRING),
+            ' - ', CAST(CAST(age_max_num AS INT) AS STRING))
+    ))
+) AS inconsistent_age_bounds
+FROM population_profile;
+
+-- 10. Required ingestion lineage. Run before marking this check as passed.
+SELECT _source_file, _run_id, COUNT(*) AS row_count,
+    COUNT_IF(
+        NULLIF(TRIM(_drive_file_id), '') IS NULL
+        OR NULLIF(TRIM(_source_file), '') IS NULL
+        OR NULLIF(TRIM(_landing_file), '') IS NULL
+        OR NULLIF(TRIM(_content_hash), '') IS NULL
+        OR NULLIF(TRIM(_dataset_hash), '') IS NULL
+        OR NULLIF(TRIM(_run_id), '') IS NULL
+        OR _ingested_at IS NULL
+    ) AS incomplete_lineage_rows
+FROM population_profile
+GROUP BY _source_file, _run_id;

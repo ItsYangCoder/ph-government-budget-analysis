@@ -1,419 +1,167 @@
--- Unemployment Rate — Data Profiling SQL
--- Original SQL cells retained from the uploaded notebook. Run in Databricks; headings are separated from executable code. Some checks are exploratory and may require adjustment after reviewing the documentation notebook.
--- - Profiling done by Anje
-
--- 1. Dataset understanding
-
--- Inspect table schema
+-- Unemployment Rate: Bronze profiling
+-- Run in one Databricks SQL session. Source tables are unchanged.
+-- Snapshot results are documented in findings.md.
 
 DESCRIBE TABLE pondolens.dev_bronze.unemployment_rate;
 
--- Inspect records with other estimate statuses
-
-SELECT *
-FROM pondolens.dev_bronze.unemployment_rate
-WHERE estimate_status NOT IN ('Preliminary', 'Final')
-LIMIT 30;
-
--- Inspect table metadata
-
-DESCRIBE DETAIL pondolens.dev_bronze.unemployment_rate;
-
--- Count records by unit
-
-SELECT
-    unit,
-    COUNT(*) AS record_count
-FROM pondolens.dev_bronze.unemployment_rate
-GROUP BY unit
-ORDER BY unit;
-
--- Count records by estimate status
-
-SELECT
-    estimate_status,
-    COUNT(*) AS record_count
-FROM pondolens.dev_bronze.unemployment_rate
-GROUP BY estimate_status
-ORDER BY record_count DESC;
-
--- Dataset size and coverage
-
--- determine overall size and coverage
-SELECT
-    COUNT(*) AS total_records,
-    COUNT(DISTINCT year) AS total_years,
-    COUNT(DISTINCT region) AS total_geographies,
-    MIN(year) AS earliest_year,
-    MAX(year) AS latest_year
+CREATE OR REPLACE TEMP VIEW unemployment_profile AS
+SELECT *,
+    TRY_CAST(TRIM(year) AS DECIMAL(20, 6)) AS parsed_year,
+    TRY_CAST(TRIM(value) AS DECIMAL(30, 12)) AS numeric_value,
+    TRY_CAST(TRIM(standard_error) AS DECIMAL(30, 12)) AS numeric_se,
+    TRY_CAST(TRIM(coefficient_of_variation_percent) AS DECIMAL(30, 12)) AS numeric_cv
 FROM pondolens.dev_bronze.unemployment_rate;
 
--- Records by year
+-- Overall completeness and ingestion rescue payloads.
+SELECT COUNT(*) AS total_rows,
+    COUNT(DISTINCT _source_file) AS source_files,
+    COUNT_IF(NULLIF(TRIM(region), '') IS NULL) AS missing_regions,
+    COUNT_IF(NULLIF(TRIM(geographic_name), '') IS NULL) AS missing_geographic_names,
+    COUNT_IF(NULLIF(TRIM(indicator), '') IS NULL) AS missing_indicators,
+    COUNT_IF(NULLIF(TRIM(year), '') IS NULL) AS missing_years,
+    COUNT_IF(NULLIF(TRIM(value), '') IS NULL) AS missing_values,
+    COUNT_IF(NULLIF(TRIM(_rescued_data), '') IS NOT NULL) AS rescued_rows
+FROM unemployment_profile;
 
--- records by year
-SELECT
-    year,
-    COUNT(*) AS total_records,
-    COUNT(DISTINCT region) AS distinct_geographies
-FROM pondolens.dev_bronze.unemployment_rate
-GROUP BY year
-ORDER BY year;
+-- Year parsing must preserve whole years.
+SELECT year, COUNT(*) AS row_count
+FROM unemployment_profile
+WHERE parsed_year IS NULL OR parsed_year <> FLOOR(parsed_year)
+   OR NOT (TRIM(year) RLIKE '^[0-9]{4}([.]0+)?$')
+GROUP BY year;
 
--- Geographic records by year
+SELECT year, indicator, unit, geographic_level, frequency, estimate_status,
+    COUNT(*) AS row_count,
+    COUNT(DISTINCT geographic_name) AS distinct_locations
+FROM unemployment_profile
+GROUP BY year, indicator, unit, geographic_level, frequency, estimate_status
+ORDER BY year, indicator, geographic_level, estimate_status;
 
--- list all geographic records per year
-SELECT
-    year,
-    region,
-    COUNT(*) AS record_count
-FROM pondolens.dev_bronze.unemployment_rate
-GROUP BY year, region
-ORDER BY year, region;
+SELECT source_name, source_page, source_table, table_version,
+    _source_file, _source_sheet, COUNT(*) AS row_count
+FROM unemployment_profile
+GROUP BY source_name, source_page, source_table, table_version,
+    _source_file, _source_sheet
+ORDER BY table_version;
 
--- Geographic changes across years
+-- Missing values and source markers remain visible.
+SELECT year, region, geographic_name, geographic_level, indicator, unit,
+    value, value_source_marker, estimate_status, table_version, source_cell
+FROM unemployment_profile
+WHERE NULLIF(TRIM(value), '') IS NULL OR numeric_value IS NULL
+ORDER BY year, region, geographic_name, indicator;
 
-WITH cleaned_data AS (
-    SELECT DISTINCT
-        CASE
-            WHEN TRIM(year) RLIKE '^[0-9]{4}(\\.0+)?$'
-            THEN TRY_CAST(
-                TRY_CAST(TRIM(year) AS DECIMAL(10,3))
-                AS INT
-            )
-        END AS year,
+SELECT year, indicator, unit, COUNT(*) AS total_rows,
+    COUNT_IF(NULLIF(TRIM(value), '') IS NULL) AS missing_values,
+    COUNT_IF(NULLIF(TRIM(value), '') IS NOT NULL AND numeric_value IS NULL)
+        AS invalid_numeric_values,
+    COUNT_IF(numeric_value < 0) AS negative_values,
+    COUNT_IF(LOWER(TRIM(indicator)) = 'unemployment rate'
+        AND numeric_value > 100) AS rates_above_100,
+    COUNT_IF(NULLIF(TRIM(standard_error), '') IS NOT NULL AND numeric_se IS NULL)
+        AS invalid_standard_errors,
+    COUNT_IF(numeric_se < 0) AS negative_standard_errors,
+    COUNT_IF(NULLIF(TRIM(coefficient_of_variation_percent), '') IS NOT NULL
+        AND numeric_cv IS NULL) AS invalid_cv_values,
+    COUNT_IF(numeric_cv < 0) AS negative_cv_values,
+    MIN(numeric_value) AS minimum_value, MAX(numeric_value) AS maximum_value
+FROM unemployment_profile
+GROUP BY year, indicator, unit
+ORDER BY year, indicator;
 
-        UPPER(TRIM(region)) AS region
+-- Within-version duplicates; parent region is part of the geography key.
+SELECT year, region, geographic_name, geographic_level, indicator, unit,
+    frequency, estimate_status, table_version, COUNT(*) AS row_count,
+    COLLECT_SET(value) AS recorded_values,
+    COLLECT_SET(source_cell) AS source_cells
+FROM unemployment_profile
+GROUP BY year, region, geographic_name, geographic_level, indicator, unit,
+    frequency, estimate_status, table_version
+HAVING COUNT(*) > 1;
 
-    FROM pondolens.dev_bronze.unemployment_rate
-    WHERE region IS NOT NULL
-),
-
-years AS (
-    SELECT explode(sequence(2022, 2025)) AS year
-),
-
-changes AS (
-    SELECT
-        y.year,
-        r.region,
-
-        CASE
-            WHEN curr.region IS NOT NULL
-             AND prev.region IS NULL
-                THEN 'NEW IN CURRENT YEAR'
-
-            WHEN curr.region IS NULL
-             AND prev.region IS NOT NULL
-                THEN 'MISSING IN CURRENT YEAR'
-        END AS change_status
-
-    FROM years y
-
-    CROSS JOIN (
-        SELECT DISTINCT region
-        FROM cleaned_data
-        WHERE region <> ''
-          AND year BETWEEN 2021 AND 2025
-    ) r
-
-    LEFT JOIN cleaned_data curr
-        ON curr.year = y.year
-       AND curr.region = r.region
-
-    LEFT JOIN cleaned_data prev
-        ON prev.year = y.year - 1
-       AND prev.region = r.region
-)
-
-SELECT *
-FROM changes
-WHERE change_status IS NOT NULL
-ORDER BY year, change_status, region;
-
--- 2. Completeness profiling
-
--- Missing values summary
-
-SELECT
-    COUNT(*) AS total_records,
-
-    SUM(CASE
-        WHEN year IS NULL THEN 1 ELSE 0
-    END) AS null_years,
-
-    SUM(CASE
-        WHEN region IS NULL
-          OR TRIM(region) = ''
-        THEN 1 ELSE 0
-    END) AS missing_regions,
-
-    SUM(CASE
-        WHEN value IS NULL
-        THEN 1 ELSE 0
-    END) AS null_measurements,
-
-    ROUND(
-        100.0 * SUM(
-            CASE
-                WHEN value IS NULL
-                THEN 1 ELSE 0
-            END
-        ) / NULLIF(COUNT(*), 0),
-        2
-    ) AS measurement_null_percentage
-
-FROM pondolens.dev_bronze.unemployment_rate;
-
--- Inspect missing values
-
-SELECT *
-FROM pondolens.dev_bronze.unemployment_rate
-WHERE year IS NULL
-   OR region IS NULL
-   OR TRIM(region) = ''
-   OR value IS NULL
-ORDER BY year, region;
-
--- Region-year coverage
-
-SELECT
-    region,
-
-    SUM(CASE WHEN year = 2021.0 THEN 1 ELSE 0 END) AS y2021,
-    SUM(CASE WHEN year = 2022.0 THEN 1 ELSE 0 END) AS y2022,
-    SUM(CASE WHEN year = 2023.0 THEN 1 ELSE 0 END) AS y2023,
-    SUM(CASE WHEN year = 2024.0 THEN 1 ELSE 0 END) AS y2024,
-    SUM(CASE WHEN year = 2025.0 THEN 1 ELSE 0 END) AS y2025
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-GROUP BY region
-ORDER BY region;
-
--- 3. Uniqueness and duplicates
-
--- Candidate duplicates
-
-SELECT
-    year,
-    region,
-    value,
-    unit,
-    indicator,
-    geographic_level,
-    estimate_status,
-    COUNT(*) AS duplicate_count
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-GROUP BY
-    year,
-    region,
-    value,
-    unit,
-    indicator,
-    geographic_level,
-    estimate_status
-
-HAVING COUNT(*) > 1
-
-ORDER BY duplicate_count DESC;
-
--- Repeated business keys
-
--- year + region + unit + estimate_status + geographic_level
-SELECT
-    year,
-    region,
-    unit,
-    estimate_status,
-    geographic_level,
-
-    COUNT(*) AS record_count,
-
-    COUNT(DISTINCT
-        TRY_CAST(value AS DOUBLE)
-    ) AS distinct_values,
-
-    COUNT_IF(value IS NULL)
-        AS null_count,
-
-    MIN(TRY_CAST(value AS DOUBLE))
-        AS minimum_value,
-
-    MAX(TRY_CAST(value AS DOUBLE))
-        AS maximum_value
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-GROUP BY
-    year,
-    region,
-    unit,
-    estimate_status,
-    geographic_level
-
-HAVING COUNT(*) > 1
-
-ORDER BY record_count DESC;
-
--- Regional business-key check
-
--- separate check for regional level only
--- zero rows: proposed key is unique within regional subset
--- year + region + unit + estimate_status
-
-SELECT
-    year,
-    region,
-    unit,
-    estimate_status,
-    COUNT(*) AS record_count
-
-FROM pondolens.dev_bronze.unemployment_rate
-
+-- Compare regional estimates before applying a version-selection rule.
+SELECT year, region, value, standard_error, coefficient_of_variation_percent,
+    estimate_status, table_version
+FROM unemployment_profile
 WHERE LOWER(TRIM(geographic_level)) = 'region'
+  AND LOWER(TRIM(indicator)) = 'unemployment rate'
+ORDER BY year, UPPER(TRIM(region)), estimate_status;
 
-GROUP BY
-    year,
-    region,
-    unit,
-    estimate_status
+-- Collapse equivalent crosswalk rows, not source records.
+CREATE OR REPLACE TEMP VIEW unemployment_aliases AS
+SELECT DISTINCT UPPER(TRIM(source_region)) AS alias,
+    region_code, region_name, valid_from_year, valid_to_year
+FROM pondolens.dev_silver.shared_region_crosswalk
+WHERE LOWER(TRIM(geographic_level)) = 'region'
+  AND NULLIF(TRIM(region_code), '') IS NOT NULL
+  AND NULLIF(TRIM(region_name), '') IS NOT NULL;
 
-HAVING COUNT(*) > 1
+CREATE OR REPLACE TEMP VIEW unemployment_mapping AS
+SELECT s.year, s.source_region,
+    COLLECT_SET(NAMED_STRUCT(
+        'region_code', c.region_code, 'region_name', c.region_name
+    )) FILTER (WHERE c.region_code IS NOT NULL) AS mappings
+FROM (
+    SELECT DISTINCT CAST(parsed_year AS INT) AS year, TRIM(region) AS source_region
+    FROM unemployment_profile
+    WHERE LOWER(TRIM(geographic_level)) = 'region'
+      AND parsed_year = FLOOR(parsed_year)
+) s
+LEFT JOIN unemployment_aliases c
+    ON UPPER(s.source_region) = c.alias
+   AND s.year BETWEEN c.valid_from_year AND c.valid_to_year
+GROUP BY s.year, s.source_region;
 
-ORDER BY year, region, unit;
+SELECT *, SIZE(mappings) AS mapping_count
+FROM unemployment_mapping
+ORDER BY year, source_region;
 
--- 4. Validity checks
-
--- Invalid numeric measurements
-
--- identify values that cannot be converted to numbers
-SELECT
-    year,
-    region,
-    value
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-WHERE value IS NOT NULL
-  AND TRY_CAST(
-      CAST(value AS STRING) AS DOUBLE
-  ) IS NULL;
-
--- Unemployment rate range
-
--- Validity check: Unemployment rate must be between 0 and 100
--- no rows, so all unemployment rate between 0 and 100
-
-SELECT
-    year,
-    region,
-    value,
-    unit
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-WHERE LOWER(TRIM(unit)) = 'percent'
+-- Candidate selection only: no Silver table is created.
+CREATE OR REPLACE TEMP VIEW unemployment_selected AS
+SELECT p.*, ELEMENT_AT(m.mappings, 1).region_code AS mapped_region_code,
+    SIZE(m.mappings) AS mapping_count
+FROM unemployment_profile p
+LEFT JOIN unemployment_mapping m
+    ON CAST(p.parsed_year AS INT) = m.year
+   AND TRIM(p.region) = m.source_region
+WHERE LOWER(TRIM(p.indicator)) = 'unemployment rate'
+  AND LOWER(TRIM(p.geographic_level)) = 'region'
+  AND LOWER(TRIM(p.frequency)) = 'annual'
   AND (
-      TRY_CAST(value AS DOUBLE) < 0
-      OR TRY_CAST(value AS DOUBLE) > 100
+      (p.parsed_year = 2021 AND LOWER(TRIM(p.estimate_status)) = 'not specified')
+      OR (p.parsed_year BETWEEN 2022 AND 2024
+          AND LOWER(TRIM(p.estimate_status)) = 'final')
+      OR (p.parsed_year = 2025 AND LOWER(TRIM(p.estimate_status)) = 'preliminary')
   );
 
--- Rate summary statistics
-
-SELECT
-    year,
-
-    COUNT(*) AS total_records,
-
-    ROUND(MIN(TRY_CAST(value AS DOUBLE)), 2)
-        AS minimum_rate,
-
-    ROUND(MAX(TRY_CAST(value AS DOUBLE)), 2)
-        AS maximum_rate,
-
-    ROUND(AVG(TRY_CAST(value AS DOUBLE)), 2)
-        AS unweighted_average_rate
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-WHERE LOWER(TRIM(unit)) = 'percent'
-
-GROUP BY year
+SELECT CAST(parsed_year AS INT) AS year, estimate_status,
+    COUNT(*) AS selected_rows,
+    COUNT(DISTINCT mapped_region_code) AS unique_regions,
+    COUNT_IF(numeric_value IS NULL) AS missing_rates,
+    COUNT_IF(COALESCE(mapping_count, 0) <> 1) AS invalid_mappings,
+    MIN(numeric_value) AS minimum_rate, MAX(numeric_value) AS maximum_rate
+FROM unemployment_selected
+GROUP BY parsed_year, estimate_status
 ORDER BY year;
 
--- 5. Consistency and geographic standardization
+-- Explicit post-mapping duplicate check: no source DISTINCT.
+SELECT CAST(parsed_year AS INT) AS year, mapped_region_code,
+    COUNT(*) AS row_count
+FROM unemployment_selected
+GROUP BY parsed_year, mapped_region_code
+HAVING COUNT(*) > 1;
 
--- Region name normalization
-
-SELECT
-    UPPER(
-        REGEXP_REPLACE(TRIM(region), '[^A-Za-z0-9]', '')
-    ) AS normalized_region,
-
-    COLLECT_SET(region) AS original_region_names,
-
-    COUNT(DISTINCT region) AS name_variations
-
-FROM pondolens.dev_bronze.unemployment_rate
-
-WHERE region IS NOT NULL
-
-GROUP BY
-    UPPER(
-        REGEXP_REPLACE(TRIM(region), '[^A-Za-z0-9]', '')
-    )
-
-HAVING COUNT(DISTINCT region) > 1
-
-ORDER BY name_variations DESC;
-
--- 6. Accuracy and reconciliation
-
--- Regional versus national counts
-
-WITH filtered AS (
-    SELECT
-        year,
-        LOWER(TRIM(geographic_level)) AS geographic_level,
-        TRY_CAST(value AS DOUBLE) AS unemployed_persons
-    FROM pondolens.dev_bronze.unemployment_rate
-    WHERE LOWER(TRIM(unit)) = 'thousand persons'
-      AND LOWER(TRIM(estimate_status)) = 'final'
-),
-
-yearly AS (
-    SELECT
-        year,
-
-        SUM(CASE
-            WHEN geographic_level = 'region'
-            THEN unemployed_persons
-            ELSE 0
-        END) AS regional_total,
-
-        MAX(CASE
-            WHEN geographic_level = 'country'
-            THEN unemployed_persons
-        END) AS national_total
-
-    FROM filtered
-    GROUP BY year
-)
-
-SELECT
-    year,
-    regional_total,
-    national_total,
-
-    regional_total - national_total AS difference,
-
-    ROUND(
-        100.0 * (regional_total - national_total)
-        / NULLIF(national_total, 0),
-        2
-    ) AS difference_percentage
-
-FROM yearly
-ORDER BY year;
+SELECT _source_file, _run_id, COUNT(*) AS row_count,
+    COUNT_IF(
+        NULLIF(TRIM(_drive_file_id), '') IS NULL
+        OR NULLIF(TRIM(_source_file), '') IS NULL
+        OR NULLIF(TRIM(_landing_file), '') IS NULL
+        OR NULLIF(TRIM(_content_hash), '') IS NULL
+        OR NULLIF(TRIM(_dataset_hash), '') IS NULL
+        OR NULLIF(TRIM(_run_id), '') IS NULL
+        OR _ingested_at IS NULL
+    ) AS incomplete_lineage_rows,
+    MIN(_ingested_at) AS earliest_ingestion,
+    MAX(_ingested_at) AS latest_ingestion
+FROM unemployment_profile
+GROUP BY _source_file, _run_id;

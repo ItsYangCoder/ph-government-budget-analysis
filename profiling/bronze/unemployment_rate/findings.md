@@ -1,66 +1,117 @@
-# Unemployment Rate — Data Profiling Documentation
+# Unemployment Rate — Bronze Findings
 
-Documentation and findings separated from the SQL notebook. Findings below reflect the original uploaded notebook; they are not independently verified against the underlying data.
+Updated: 20 October 2026 (Asia/Manila)  
+Table: `pondolens.dev_bronze.unemployment_rate` 
+Assigned to: Anjelika Marquez 
+Scope: 2021–2025
 
-Data profiling
-- Dataset understanding: structure, columns, grain, and metadata
-- Completeness — missing values, years, and geographic coverage
-- Uniqueness — exact duplicates and repeated business keys
-- Validity — numeric values, unemployment rates, and estimate status
-- Consistency — region names, codes, geographic levels, and units
-- Accuracy and reconciliation — compare regional totals with national figures and source files
-- Silver treatment — determine how to clean and standardize the dataset
+## Summary
 
-## 1. Dataset understanding
+The reported checks cover 1,914 records from one ingested workbook and four source table versions. Regional rate values are present, numeric, and within 0–100. Source versions must be selected before producing one regional rate per year.
 
-- relevant columns for silver: Region, year, unit, geographic_level, indicator, value, estimate_status
-- Current granularity: one row represents unemployment measure for a geographic area, year, type, and estimate status
-- Granularity for silver: one row represents unemployment rate for a region for a  year. 
-- For silver: Only include estimate status of final for years 2022-2024, Preliminary for 2025, and not specified for 2021.
+These results come from the Databricks outputs supplied during profiling. The final consolidated SQL includes additional checks whose results are still pending.
 
-- dataset contains both unemployment rates and counts
-- measured in percent and in thousand person
-- no unexpected measure or units
+## Reported check results
 
-## 2. Completeness profiling
+| Check | Result |
+|---|---|
+| Total rows | 1,914 |
+| Source files | 1 |
+| Missing region, geographic name, indicator, or year | 0 for each field |
+| Missing estimates | 10 |
+| Nonnumeric nonblank estimates | 0 |
+| Negative estimates | 0 |
+| Unemployment rates above 100 | 0 |
+| Invalid nonblank / negative standard errors | 0 / 0 |
+| Invalid nonblank / negative CVs | 0 / 0 |
+| Duplicates within the tested source-version key | 0 |
+| Regional year/alias mapping | One distinct canonical pair per tested alias and year |
+| Rescued rows | 0 |
+| Incomplete required lineage | 0 |
 
-| Issue | Check |
-|--------|------|
-| Negros Island Region | 2024 to 2025 only |
-| Philippines | national observation mixed with regional observations |
-| NCR, CAR, Regions I–XIII | expected regional observations are present |
+Numeric parse checks do not establish statistical validity or source accuracy.
 
-- 10 nulls are at the city and province level, these are not relevant to BP/AP so it's okay
+## Source versions
 
-## 3. Uniqueness and duplicates
+| Source table coverage | Rows |
+|---|---:|
+| 2021 | 270 |
+| 2022 and 2023 | 552 |
+| 2023 and 2024 | 544 |
+| 2024 and 2025 | 548 |
 
-- No duplicates reported at the regional candidate key: year + region + unit + estimate_status. Recheck indicator and geographic level when defining the final Silver key.
+2023 and 2024 appear in both Preliminary and Final releases. Some values change between releases. These are versioned observations, not automatically duplicate errors.
 
-## 4. Validity checks
+## Missing estimates
 
-- all unemployment rates are valid. Accepted numeric range is 0–100 inclusive; numeric parseability and missingness are checked separately. 
+| Year | Area | Source status | Measures missing | Marker |
+|---|---|---|---:|---|
+| 2022 | Cotabato City, BARMM | Final | 2 | a/ |
+| 2022 | Maguindanao del Norte | Final | 2 | c/ |
+| 2022 | Maguindanao del Sur | Final | 2 | None supplied |
+| 2023 | Cotabato City, Region XII | Preliminary | 2 | b/ |
+| 2023 | Maguindanao, BARMM | Preliminary | 2 | d/ |
 
-## 5. Consistency and geographic standardization
+Each pair contains the unemployed-person estimate and unemployment rate. Keep these NULL values and their markers. Source footnote meanings are not yet verified.
 
-| Issue | Check |
-|--------|------|
-|(BARMM/ARMM) vs (BARMM) | BANGSAMORO AUTONOMOUS REGION IN MUSLIM MINDANAO (BARMM/ARMM) in 2021 and BANGSAMORO AUTONOMOUS REGION IN MUSLIM MINDANAO (BARMM) 2022 nwards|
-|  Region IV-A vs Region IVA | Formatting inconsistency: Region IV-A vs Region IVA  in 2024 data. IV-A in 2025 data.|
+## Regional candidate selection
 
-## 6. Accuracy and reconciliation
+Proposed rule for the observed snapshot: use Final where supplied; retain the only supplied 2021 and 2025 versions.
 
-- regional unemployment in thousand person is equal to national unemployment for years 2022, 2023, 2024. 2021 and 2025 data were not checked because of different estimate_status. 
+| Year | Status | Selected rows | Unique regions | Missing rates | Minimum rate | Maximum rate |
+|---|---|---:|---:|---:|---:|---:|
+| 2021 | Not specified | 17 | 17 | 0 | 4.012 | 10.612 |
+| 2022 | Final | 17 | 17 | 0 | 3.709 | 7.244 |
+| 2023 | Final | 17 | 17 | 0 | 2.364 | 5.872 |
+| 2024 | Final | 18 | 18 | 0 | 2.501 | 5.646 |
+| 2025 | Preliminary | 18 | 18 | 0 | 2.711 | 5.842 |
 
-## 7. Silver treatment proposal
+The reported selection returned 87 rows using DISTINCT. The consolidated profiling SQL removes source deduplication and adds an explicit post-mapping duplicate check. Its rerun is pending. This is a candidate selection, not a validated Silver load.
 
-- Proposed estimate status to select per year (pending confirmation against source revisions):
+The rule is specific to this snapshot. A new release requires version review; ingestion timestamps alone do not identify the authoritative estimate.
 
-| Estimate status | Year |
-| ------ | ------|
-| Final | 2022 - 2024 |
-| Not specified | 2021 |
-| Preliminary | 2025 | 
-- BARMM/ARMM should just be BARMM
-- Remove dashes from region code
-- Separate region code from region name
-- Bronze `year` and `value` are strings, so numeric conversion must be validated.
+## 2021 source verification
+
+Reviewed the supplied [2021 reference workbook](https://drive.google.com/file/d/1Mx2Jb2gD2VCwB-R3HJ48tfYlAb-vzzHv). Its table heading and readable notes do not explicitly state Final or Preliminary. Retain Not specified.
+
+The source identifies the Philippine Statistics Authority, 2021 Labor Force Survey, and states that estimates use the 2015 POPCEN-based Population Projection. Its rounding note explains that details may not add to totals.
+
+Small 2021 standard-error and CV values are present in the reference workbook too. Their cross-year comparability remains pending; do not rescale them based only on their magnitude.
+
+## Geography
+
+- Both 2024 CALABARZON labels map to IVA. They are aliases, not separate regions.
+- The supplied NIR regional rates begin in the 2024 Final version and continue in 2025 Preliminary.
+- Do not fabricate NIR rates for 2021–2023.
+- VI, VII, and NIR comparisons require boundary review. Matching canonical codes does not prove consistent geographic coverage across releases or budget sources.
+
+## Lineage
+
+- Source: `05_development_indicators/01_unemployment_rate/Unemployment_2021-2025.xlsm`
+- Run: `06348391a60e4b3bb71634792d2a6f73`
+- All 1,914 records have the tested required lineage fields.
+- Earliest and latest ingestion: `2026-10-18T19:01:01.796Z`.
+
+## Recommended Silver treatment
+
+- Parse whole-year text into INT after validating the original label.
+- Store rates as decimals without multiplying or dividing the Percent values.
+- Select regional Annual unemployment-rate observations for the regional analysis.
+- Preserve estimate status, including Preliminary for 2025 and Not specified for 2021.
+- Resolve equivalent crosswalk aliases without multiplying source rows.
+- Validate one record per selected year and canonical region.
+- Keep all original measures, versions, source markers, and lineage in Bronze.
+
+## Pending checks
+
+- Run the consolidated whole-year validation and post-mapping duplicate check.
+- Verify source footnotes a/–d/.
+- Verify statistical methodology and 2021 precision-field comparability.
+- Review geographic comparability around NIR and VI/VII.
+- Validate comparison-year and change fields before using them.
+- Assignment owner is not confirmed for this documentation.
+
+## Related files
+
+- [Profiling SQL](profiling.sql)
+- [Data dictionary](data_dictionary.md)

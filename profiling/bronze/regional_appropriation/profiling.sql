@@ -1,5 +1,8 @@
 -- Regional appropriations profiling 
--- Profiled by: Razz
+-- Documented by: Razzelle Boreros
+-- Read-only profiling; temporary views do not change Bronze.
+-- Reconciliation uses the agreed dash-as-zero interpretation.
+-- Reported results and pending checks are listed in findings.md.
 
 -- 1. Review column types and prepare values for checking.
 DESCRIBE TABLE pondolens.dev_bronze.regional_appropriation;
@@ -39,6 +42,7 @@ SELECT
     MIN(year_num) AS earliest_year,
     MAX(year_num) AS latest_year,
     COUNT(DISTINCT year_num) AS distinct_years,
+    COUNT_IF(year_num IS NULL) AS unparseable_years,
     COUNT_IF(year_num NOT BETWEEN 2021 AND 2025) AS rows_outside_scope
 FROM gaa_profile;
 
@@ -413,3 +417,27 @@ SELECT
 
 FROM totals
 ORDER BY check_name, year, group_1, group_2;
+
+
+-- 8. Validate original year labels without silently truncating fractions.
+SELECT year_text, COUNT(*) AS row_count
+FROM gaa_profile
+WHERE NOT (year_text RLIKE '^[0-9]{4}$') OR year_num IS NULL
+GROUP BY year_text;
+
+-- 9. Check ingestion metadata. Results are pending until this query is run.
+SELECT _source_file, _run_id, COUNT(*) AS row_count,
+    COUNT_IF(
+        NULLIF(TRIM(_drive_file_id), '') IS NULL
+        OR NULLIF(TRIM(_source_file), '') IS NULL
+        OR NULLIF(TRIM(_landing_file), '') IS NULL
+        OR NULLIF(TRIM(_content_hash), '') IS NULL
+        OR NULLIF(TRIM(_dataset_hash), '') IS NULL
+        OR NULLIF(TRIM(_run_id), '') IS NULL
+        OR _ingested_at IS NULL
+    ) AS incomplete_lineage_rows,
+    COUNT_IF(NULLIF(TRIM(_rescued_data), '') IS NOT NULL) AS rescued_rows,
+    MIN(_ingested_at) AS earliest_ingestion,
+    MAX(_ingested_at) AS latest_ingestion
+FROM gaa_profile
+GROUP BY _source_file, _run_id;

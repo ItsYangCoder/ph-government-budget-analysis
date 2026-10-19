@@ -1,105 +1,107 @@
-# Population Profiling - Documentation and Results
-**Table:** `pondolens.dev_bronze.population`
+# Population — Bronze Findings
 
-- **Source basis:** Projected Mid-Year Population (1 July), by region, sex and five-year age group, 2020–2035 - PSA 2020 Census-Based Population Projections, Table 1.
-- **Total Rows:** 16416 rows
+Assigned to: **Razzelle Boreros**  
+Documented by: **Razzelle Boreros**  
+Updated: 20 October 2026 (Asia/Manila)  
+Table: `pondolens.dev_bronze.population`
 
-**Description:** PSA population projections by region, age group and sex.
+## What this dataset contains
 
-**Goal:** identify cleaning needed before Silver and assess regional totals for Q3.
+Projected population by region, year, age group, and sex. One row represents one combination of these fields.
 
-**Grain:** region × year × age group × sex.
+The supplied report identifies the source as **PSA 2020 Census-Based Population Projections, Table 1**, with projected mid-year population as of **1 July**, covering 2020–2035. Values are in **persons**.
 
-**Proposed Grain for Silver:** region x year x age group
+These are projections, not a fresh census count for every year. They can provide population context for regional budget analysis.
 
-**Documented by:** Razz
+## Reported results
 
+The results below come from the supplied findings. They were not rerun against Databricks while preparing this document.
 
-## Assumptions and scope
-
-- **Source:** PSA’s 2020 Census-Based Population Projections, Table 1, provides projected mid-year population as of 1 July by region, sex and age group. Since censuses are not conducted annually, this dataset uses projections for yearly comparisons, including 2025, rather than directly counted census populations for each year.
-- **Unit:** Population is measured in persons.
-- **Silver scope:** Only records for 2021-2025 will be processed.
-- **Totals:** TOTAL covers all ages, and BOTH covers both sexes. Do not add these totals to their breakdowns.
-- **Missing age limits:** NULL age limits are expected for TOTAL and the upper limit of 85 and over.
-- **Missing population:** Missing values must not be treated as zero.
-- **NIR:** No population values will be created for NIR because it is not inside the source.
-- **National aggregation:** The sum of regional records becomes a calculated national total and may differ from the source-reported Philippines value.
-
-## Data Profiling Findings
-
-| Category | Finding |
+| Check | Reported result |
 |---|---|
-| Dataset understanding | Bronze contains 16,416 rows covering 2020–2035. |
-| Dataset understanding | Only records for 2021–2025 should be processed into Silver. |
-| Dataset understanding | Values represent projected mid-year population as of 1 July. |
-| Dataset understanding | The source is PSA’s 2020 Census-Based Population Projections, Table 1. |
-| Dataset understanding | Each record represents region × year × age group × sex. |
-| Dataset understanding | All columns are STRING except `_ingested_at`, which is TIMESTAMP. |
-| Dataset understanding | Source and ingestion metadata are available. |
-| Dataset understanding | Philippines is the separately reported national total covering the 17 regions, not an additional region. |
-| Completeness | No missing region, year, population, age group, sex, reference date or source values were found. |
-| Completeness | The 864 missing age_min values correspond to TOTAL records. |
-| Completeness | The 1,728 missing age_max values correspond to TOTAL and 85-and-over records. |
-| Completeness | Coverage includes 17 regions and Philippines. |
-| Completeness | NIR is absent from the source. |
-| Completeness | There are 85 regional TOTAL/BOTH records for 2021–2025. |
-| Uniqueness | No exact duplicates were found, with or without ingestion metadata. |
-| Uniqueness | No repeated region/year/age-group/sex keys were found. |
-| Validity | No invalid numeric values were found in year, age_min, age_max or population. |
-| Validity | No dash placeholders were found in year, age_min, age_max or population. |
-| Validity | No negative values were found in year, age_min, age_max or population. |
-| Validity | All populated values in the checked numeric fields represent whole numbers. |
-| Validity | Population ranges from 2,100 to 123,963,500 across Bronze. |
-| Validity | No zero population values were found. |
-| Validity | An age_min of zero is valid for the 0–4 age group. |
-| Validity | No invalid years or reference dates were found. |
-| Validity | All reference dates agree with their year values. |
-| Validity | No unexpected sex values or age-group labels were found. |
-| Validity | `_rescued_data` is null throughout. |
-| Consistency | Region labels contain prefixes, parentheses and inconsistent capitalization. |
-| Consistency | Region codes are not stored in a separate column. |
-| Consistency | Population values are counts of persons. |
-| Accuracy and reconciliation | All 16,416 CSV population values match original Excel File.. |
-| Accuracy and reconciliation | All CSV reference dates match the original Excel. |
-| Accuracy and reconciliation | No source records are missing from the CSV. |
-| Accuracy and reconciliation | The sum of the 17 regional TOTAL/BOTH values matches Philippines in 2021 and 2025. |
-| Accuracy and reconciliation | The regional sum is 100 higher than Philippines in each of 2022, 2023 and 2024. |
-| Accuracy and reconciliation | These differences also appear in the original Excel and were preserved during ingestion. |
+| Total records | 16,416 |
+| Year coverage | 2020–2035 |
+| Geography | 17 regions plus the separately reported Philippines total |
+| NIR | Not included in this source |
+| Missing region, year, population, age group, sex, reference date, or source | 0 |
+| Missing age_min | 864, associated with TOTAL |
+| Missing age_max | 1,728, associated with TOTAL and 85 AND OVER |
+| Exact duplicates, including or excluding ingestion metadata | 0 |
+| Repeated region/year/age-group/sex keys | 0 |
+| Invalid nonblank numeric values in tested fields | 0 |
+| Numeric dash placeholders | 0 |
+| Negative or fractional values in tested numeric fields | 0 |
+| Population range | 2,100–123,963,500 persons |
+| Zero population values | 0 |
+| Invalid reference dates or reference-year mismatches | 0 |
+| Unexpected age-group or sex labels | 0 |
+| Rescued data | NULL throughout |
+| Regional TOTAL/BOTH rows for 2021–2025 | 85 |
 
-## Proposed Silver Columns and Treatments
+The supplied report also states that all 16,416 population values and reference dates match the original Excel, with no source records missing from the prepared data. Treat this as a reported source comparison: the attached SQL does not perform that Excel comparison.
 
-| Column Name | Proposed Silver Type |
-| :--- | :--- |
-| `region_name` | string |
-| `age_group` | string |
-| `age_min` | integer |
-| `age_max` | integer |
-| `sex` | string |
-| `year` | integer |
-| `population` | bigint |
-| `_processed_at` | timestamp |
+## Totals and breakdowns
 
-| Finding | Proposed Silver treatment |
+- TOTAL is the all-age total. Do not add it to its age-group breakdown.
+- BOTH is the both-sex total. Do not add it to MALE and FEMALE.
+- PHILIPPINES is the source-reported national total, not an additional region.
+- A regional national sum must use one TOTAL/BOTH record per region and year.
+- A missing population is not zero.
+
+## Regional sum versus source national total
+
+| Year | Regional sum minus Philippines |
+|---|---:|
+| 2021 | 0 persons |
+| 2022 | +100 persons |
+| 2023 | +100 persons |
+| 2024 | +100 persons |
+| 2025 | 0 persons |
+
+The supplied findings say these differences also appear in the original Excel. Preserve them. Do not adjust a region or overwrite the national estimate to force a match.
+
+When reporting a regional sum, label it as a **calculated regional total**. It should not be presented as the source-reported Philippines estimate.
+
+## Expected NULL age limits
+
+| Age group | age_min | age_max |
+|---|---:|---:|
+| TOTAL | NULL | NULL |
+| 0 - 4 | 0 | 4 |
+| 85 AND OVER | 85 | NULL |
+
+Other age bands need valid whole-number lower and upper limits that agree with their labels.
+
+## Recommended Silver treatment
+
+| Area | Treatment |
 |---|---|
-| Bronze covers 2020–2035. | Retain only records for 2021–2025 in Silver. |
-| Region labels need standardization. | Transform each label into its respective standardized region_name and region_code, following the agreed mapping. |
-| Year and age limits are stored as strings. | Cast year, age_min and age_max to INT. |
-| Population is stored as a string. | Cast population to BIGINT. |
-| Age-group and sex labels require consistent formatting. | Trim and standardize age_group and sex as STRING values. |
-| Missing age limits are expected for TOTAL and 85 and over. | Preserve these NULL values. |
-| Blank or literal null markers may represent missing values. | Standardize them to NULL without replacing missing population with zero. |
-| Zero is a valid lower age limit. | Preserve age_min = 0 for the 0–4 age group. |
-| `_run_id` identifies the ingestion run. | Retain it as run_id with. |
-| Silver needs a processing timestamp. | Add processed_at as TIMESTAMP using the Silver processing time. |
-| Only the proposed columns are required in Silver. | Exclude other columns from Silver while retaining them in Bronze. |
-| Age and sex breakdowns are available. | Retain these breakdowns within Silver’s 2021–2025 scope. |
-| Philippines represents the national total. | Remove it in Silver; finding the total can just be aggregated as the sum of all regions if the group agrees. |
-| No duplicates were found. | Recheck region_code + year + age_group + sex uniqueness after cleaning. |
-| NIR is absent from the source. | Only include regions currently present in the data, and do not fill in NIR values if they are missing. |
-| Manual addition of all regional values differs from the Total/Philippines level for 2022, 2023 and 2024. | Use the aggregated amounts of all regions. |
+| Scope | Keep 2021–2025 under the current project scope. |
+| Geography | Match region labels through the shared crosswalk and validate the result for each year. |
+| NIR | Do not invent, split, or fill NIR population without a supported source. |
+| Types | Validate whole-number years and ages before casting to INT. Validate nonnegative whole population values before casting to BIGINT. |
+| Labels | Trim age-group and sex labels. Preserve the meaning of TOTAL, BOTH, and open-ended age groups. |
+| Missing values | Keep expected age-limit NULLs. Preserve missing population as NULL and flag it for review. |
+| Keys | Validate canonical region + year + age group + sex after mapping. |
+| Projection reference | Keep the 1 July reference-date meaning clear in documentation. |
+| Processing time | Use processed_at for Silver processing time; retain ingestion lineage in Bronze. |
 
-Recheck data after filtering Silver to 2021–2025.
+The attached SQL proposes regional records for BOTH sexes, keeping age groups including TOTAL. The original findings also mention retaining all sex breakdowns. These are different output scopes: confirm the actual Silver contract before implementing it. Bronze keeps all source records either way.
 
+If Silver excludes PHILIPPINES, its source estimate remains available in Bronze. Any national total calculated from regional records must stay distinguishable from it.
 
+## SQL updates and pending checks
 
+- Removed the notebook-only %sql marker so the file can be used as a plain SQL script.
+- Changed temporary numeric parsing from DOUBLE to fixed-precision DECIMAL to avoid floating-point arithmetic for population counts.
+- Added age-bound consistency and required lineage checks.
+- Rerun the updated SQL before recording these additional checks as passed.
+- Confirm one-to-one year-specific crosswalk mappings and post-mapping key uniqueness.
+- Confirm the BOTH-only versus all-sex Silver scope and national-total handling.
+- Review geography compatibility before comparing this 17-region projection series with datasets that include NIR.
+- Regional coverage in this script is checked against labels found in the source; it is not independent proof that every expected official region is present.
+
+## Related files
+
+- [Profiling SQL](profiling.sql)
+- [Data dictionary](data_dictionary.md)
