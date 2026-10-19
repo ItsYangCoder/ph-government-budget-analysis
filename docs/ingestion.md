@@ -80,8 +80,8 @@ pondolens.dev_bronze
 /Volumes/pondolens/dev_bronze/government_budget
 ```
 
-For isolated testing, use a separate schema. The schema actually used in the
-recorded validation was **`dev_bronze_refactor_tes`**, without a final `t`.
+For isolated testing, use **`pondolens.dev_bronze_refactor_test`** in
+widgets, Job parameters, and verification queries.
 
 ## Supported datasets
 
@@ -168,7 +168,8 @@ Live run identifiers:
 - Unchanged rerun: `19a70355763c42049a2927780c8aa190`
 
 Record comparison used original schema `pondolens.dev_bronze` and refactored
-schema `pondolens.dev_bronze_refactor_tes`. It compared source columns and
+schema `pondolens.dev_bronze_refactor_test`.
+It compared source columns and
 `_rescued_data` as strings using `EXCEPT ALL` in both directions, preserving
 record multiplicity. Other ingestion metadata, such as run IDs, timestamps,
 landing paths, and hash columns, was excluded from this live comparison.
