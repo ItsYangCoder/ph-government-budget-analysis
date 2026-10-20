@@ -1,3 +1,11 @@
+-- Dataset: region_boundaries
+-- Table: pondolens.dev_bronze.region_boundaries
+-- Owner: Rhea Alum
+-- Scope: active
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- Region boundaries | Bronze profiling
 -- Assigned to: Rhea Alum
 -- Run in order in one SQL session. Persistent tables are read-only.

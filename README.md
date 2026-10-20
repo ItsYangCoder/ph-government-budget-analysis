@@ -26,7 +26,7 @@ An appropriation–obligation difference does not, by itself, explain why a gap 
 | Looking for… | Open |
 |---|---|
 | How ingestion works and how to run it | [Ingestion guide](docs/ingestion.md) |
-| Raw-data profiling and treatment proposals | [Bronze profiling](profiling/bronze/) |
+| Raw-data profiling and treatment proposals | [Profiling index and runbook](profiling/README.md) |
 | Completion rate findings | [Completion rate profiling](profiling/bronze/completion_rate/findings.md) |
 | Hospital findings | [Hospital profiling](profiling/bronze/hospital/findings.md) |
 | Completion rate Silver rules and dictionary | [Completion rate documentation](docs/silver/completion_rate.md) |
@@ -188,7 +188,7 @@ Installing the Python package on a laptop does not create a remote Spark session
 4. Open a pull request targeting `dev` and review conflicts before merging.
 5. Delete a task branch after confirming its work is merged. Preserve branches with unmerged team work.
 
-For new Bronze profiling work, use `profiling.sql`, `data_dictionary.md`, and `findings.md` under the dataset folder. Existing notebooks are being consolidated into this convention. Silver documentation belongs in `docs/silver/<dataset>.md`.
+For new Bronze profiling work, use `profiling.sql`, `data_dictionary.md`, and `findings.md` under the dataset folder. All registered profiling packages use this convention; see [the profiling index](profiling/README.md). Silver documentation belongs in `docs/silver/<dataset>.md`.
 
 Keep tokens, passwords, and service-account keys outside Git. Use Databricks secrets for runtime credentials.
 

@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "dialect": "databricks",
+  "datasets": [
+    {
+      "dataset": "agency_actuals",
+      "table": "pondolens.dev_bronze.agency_actuals",
+      "owner": "Mia Barroga",
+      "scope": "reference_only",
+      "path": "bronze/agency_actuals"
+    },
+    {
+      "dataset": "completion_rate",
+      "table": "pondolens.dev_bronze.completion_rate",
+      "owner": "Rhea Alum",
+      "scope": "active",
+      "path": "bronze/completion_rate"
+    },
+    {
+      "dataset": "grdp_per_capita",
+      "table": "pondolens.dev_bronze.grdp_per_capita",
+      "owner": "Anjelika Marquez",
+      "scope": "active",
+      "path": "bronze/grdp_per_capita"
+    },
+    {
+      "dataset": "hospital",
+      "table": "pondolens.dev_bronze.hospital",
+      "owner": "Joy",
+      "scope": "active",
+      "path": "bronze/hospital"
+    },
+    {
+      "dataset": "population",
+      "table": "pondolens.dev_bronze.population",
+      "owner": "Razzelle Boreros",
+      "scope": "active",
+      "path": "bronze/population"
+    },
+    {
+      "dataset": "poverty_incidence",
+      "table": "pondolens.dev_bronze.poverty_incidence",
+      "owner": "Mia Barroga",
+      "scope": "active",
+      "path": "bronze/poverty_incidence"
+    },
+    {
+      "dataset": "regional_appropriation",
+      "table": "pondolens.dev_bronze.regional_appropriation",
+      "owner": "Razzelle Boreros",
+      "scope": "active",
+      "path": "bronze/regional_appropriation"
+    },
+    {
+      "dataset": "region_boundaries",
+      "table": "pondolens.dev_bronze.region_boundaries",
+      "owner": "Rhea Alum",
+      "scope": "active",
+      "path": "bronze/region_boundaries"
+    },
+    {
+      "dataset": "regional_obligation",
+      "table": "pondolens.dev_bronze.regional_obligations",
+      "owner": "Mia Barroga",
+      "scope": "active",
+      "path": "bronze/regional_obligation"
+    },
+    {
+      "dataset": "service_access",
+      "table": "pondolens.dev_bronze.service_access",
+      "owner": "Joy",
+      "scope": "reference_only",
+      "path": "bronze/service_access"
+    },
+    {
+      "dataset": "unemployment_rate",
+      "table": "pondolens.dev_bronze.unemployment_rate",
+      "owner": "Anjelika Marquez",
+      "scope": "active",
+      "path": "bronze/unemployment_rate"
+    }
+  ]
+}

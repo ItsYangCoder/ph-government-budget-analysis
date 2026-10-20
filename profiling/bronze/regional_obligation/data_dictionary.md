@@ -62,13 +62,13 @@ The profiling business key is `year + category + particulars + regions`. Check i
 | regions = Central Office | Amount reported for the central office | Keep separate from regional amounts. It does not automatically belong to NCR. |
 | Other regions labels | Candidate regional records | Resolve through the shared crosswalk and check applicable validity years. |
 
-The shared crosswalk is the reference for canonical names and codes. The supplied profiling SQL has a local mapping preview; that preview does not prove a match against the current shared crosswalk. Check aliases and year validity before building Silver. Do not infer historical regional coverage from the current region list alone.
+The shared crosswalk is the reference for canonical names and codes. The profiling SQL checks distinct canonical mappings from the shared crosswalk; its result must still be reviewed for zero or multiple matches. Check aliases and year validity before building Silver. Do not infer historical regional coverage from the current region list alone.
 
 ## Bronze and Silver boundaries
 
 Bronze keeps source labels, values, markers, and ingestion metadata. Silver can cast year and amounts, resolve canonical geography, and standardize approved agency aliases after validation.
 
-The supplied SQL's Silver preview replaces NULL parsed amounts with zero. That is a proposed transformation, not a verified source rule. Approve dash and blank treatment separately before adopting it. This dictionary does not establish Silver readiness or confirm the SQL's expected row counts.
+Profiling retains missing, marker, and invalid amounts separately and performs no Silver writes or currency conversion. Approve marker treatment and units before downstream conversion. This dictionary does not establish Silver readiness or confirm the SQL's expected row counts.
 
 ## Related files
 

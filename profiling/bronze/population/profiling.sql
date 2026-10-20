@@ -1,3 +1,11 @@
+-- Dataset: population
+-- Table: pondolens.dev_bronze.population
+-- Owner: Razzelle Boreros
+-- Scope: active
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- Population: Bronze profiling
 -- Assigned to: Razzelle Boreros
 -- Documented by: Razzelle Boreros
