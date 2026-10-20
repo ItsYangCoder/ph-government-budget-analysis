@@ -1,391 +1,209 @@
--- PondoLens | fact_regional_expenditure | Databricks SQL
--- See fact_regional_expenditure_documentation.md for assumptions and execution notes.
--- 4392 total rows, id starts at 60000
+-- PondoLens | Gold fact_regional_budget
+-- Databricks SQL / Delta Lake
+-- Grain: one row per year_id, location_id, particular_id.
+-- IMPORTANT: Run validation queries first. This script deliberately fails on ambiguous
+-- dimension keys or unmatched source records rather than silently dropping them.
+-- Confirm source data represents additive detail rows (no totals/subtotals mixed in).
+-- Confirm appropriations and obligations are comparable in scope and units.
 
--- Step 2: Notebook code cell
-SET TIME ZONE 'UTC';
-
--- Step 3: Notebook code cell
--- Apply the SAME four particular aliases as dim_particular; Silver retains original labels.
-CREATE OR REPLACE TEMP VIEW gold_obligations_prepared AS
-SELECT
-    obligation_id,
-    year,
-    TRIM(category) AS category,
-    CASE UPPER(TRIM(particular))
-        WHEN 'THE PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'OFFICE OF THE PRESS SECRETARY' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'DEBT SERVICE FUND-INTEREST PAYMENT' THEN 'DEBT INTEREST PAYMENTS'
-        ELSE UPPER(TRIM(particular))
-    END AS particular,
-    CASE UPPER(TRIM(region_name))
-        WHEN 'BARMM' THEN 'BARMM'
-        WHEN 'CARAGA' THEN 'XIII'
-        WHEN 'CENTRAL OFFICE' THEN 'CO'
-        WHEN 'CORDILLERA ADMINISTRATIVE REGION' THEN 'CAR'
-        WHEN 'NATIONAL CAPITAL REGION' THEN 'NCR'
-        WHEN 'NATIONWIDE' THEN 'NW'
-        WHEN 'NEGROS ISLAND REGION' THEN 'NIR'
-        WHEN 'REGION I' THEN 'I'
-        WHEN 'REGION II' THEN 'II'
-        WHEN 'REGION III' THEN 'III'
-        WHEN 'REGION IVA' THEN 'IVA'
-        WHEN 'REGION IVB' THEN 'IVB'
-        WHEN 'REGION V' THEN 'V'
-        WHEN 'REGION VI' THEN 'VI'
-        WHEN 'REGION VII' THEN 'VII'
-        WHEN 'REGION VIII' THEN 'VIII'
-        WHEN 'REGION IX' THEN 'IX'
-        WHEN 'REGION X' THEN 'X'
-        WHEN 'REGION XI' THEN 'XI'
-        WHEN 'REGION XII' THEN 'XII'
-        WHEN 'BANGSAMORO AUTONOMOUS REGION IN MUSLIM MINDANAO' THEN 'BARMM'
-        WHEN 'BICOL REGION' THEN 'V'
-        WHEN 'CAGAYAN VALLEY' THEN 'II'
-        WHEN 'CALABARZON' THEN 'IVA'
-        WHEN 'CENTRAL LUZON' THEN 'III'
-        WHEN 'CENTRAL VISAYAS' THEN 'VII'
-        WHEN 'DAVAO REGION' THEN 'XI'
-        WHEN 'EASTERN VISAYAS' THEN 'VIII'
-        WHEN 'ILOCOS REGION' THEN 'I'
-        WHEN 'MIMAROPA' THEN 'IVB'
-        WHEN 'NORTHERN MINDANAO' THEN 'X'
-        WHEN 'SOCCSKSARGEN' THEN 'XII'
-        WHEN 'WESTERN VISAYAS' THEN 'VI'
-        WHEN 'ZAMBOANGA PENINSULA' THEN 'IX'
-        WHEN 'REGION IV-A' THEN 'IVA'
-        WHEN 'REGION IV-B' THEN 'IVB'
-    END AS region_code,
-    expenditure_amount AS obligation_amount
-FROM pondolens.dev_silver.regional_obligations
-WHERE year BETWEEN 2021 AND 2025
-  AND (
-      region_name IS NULL
-      OR UPPER(TRIM(region_name)) <> 'TOTAL'
-  );
-
--- Step 4: Notebook code cell
-CREATE OR REPLACE TEMP VIEW gold_appropriations_prepared AS
-SELECT
-    gaa_id,
-    year,
-    TRIM(category) AS category,
-    CASE UPPER(TRIM(particular))
-        WHEN 'THE PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'OFFICE OF THE PRESS SECRETARY' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
-        WHEN 'DEBT SERVICE FUND-INTEREST PAYMENT' THEN 'DEBT INTEREST PAYMENTS'
-        ELSE UPPER(TRIM(particular))
-    END AS particular,
-    TRIM(region_code) AS region_code,
-    appropriation_amount
-FROM pondolens.dev_silver.regional_appropriations
-WHERE year BETWEEN 2021 AND 2025;
-
--- Step 6: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid appropriation fields.')
-FROM gold_appropriations_prepared
-WHERE year IS NULL OR NULLIF(TRIM(category), '') IS NULL
-   OR NULLIF(TRIM(particular), '') IS NULL
-   OR NULLIF(TRIM(region_code), '') IS NULL;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid obligation fields or unmapped geography.')
-FROM gold_obligations_prepared
-WHERE year IS NULL OR NULLIF(TRIM(category), '') IS NULL
-   OR NULLIF(TRIM(particular), '') IS NULL OR region_code IS NULL;
-
--- Step 8: Notebook code cell
-CREATE OR REPLACE TEMP VIEW gold_appropriations_normalized AS
-SELECT
-    year,
+-- 1. Build standardized staging view. The source columns below match the screenshots.
+-- Four historical-name mappings are applied to BOTH Silver inputs before aggregation
+-- and the category + particular dimension join. Silver remains unchanged.
+-- Check that the mapped names belong to the same category in dim_particular.
+CREATE OR REPLACE TEMP VIEW budget_source_standardized AS
+WITH a AS (
+  SELECT
+    CAST(year AS INT) AS year,
+    UPPER(TRIM(CAST(region_code AS STRING))) AS region_code,
     UPPER(TRIM(category)) AS category,
-    UPPER(TRIM(particular)) AS particular,
-    UPPER(TRIM(region_code)) AS region_code,
-    appropriation_amount,
-    1 AS source_present
-FROM gold_appropriations_prepared
-WHERE UPPER(TRIM(particular)) <> 'ALL'
-  AND UPPER(TRIM(category)) <> 'GRAND TOTAL';
-
-CREATE OR REPLACE TEMP VIEW gold_obligations_normalized AS
-SELECT
-    year,
+    CASE UPPER(TRIM(particular))
+      WHEN 'THE PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'OFFICE OF THE PRESS SECRETARY' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'DEBT SERVICE FUND-INTEREST PAYMENT' THEN 'DEBT INTEREST PAYMENTS'
+      ELSE UPPER(TRIM(particular))
+    END AS particular,
+    TRY_CAST(appropriation_amount AS DECIMAL(20,4)) AS amount,
+    CASE WHEN appropriation_amount IS NOT NULL
+              AND TRY_CAST(appropriation_amount AS DECIMAL(20,4)) IS NULL
+         THEN 1 ELSE 0 END AS invalid_numeric
+  FROM pondolens.dev_silver.regional_appropriations
+),
+o AS (
+  SELECT
+    CAST(year AS INT) AS year,
+    UPPER(TRIM(CAST(region_code AS STRING))) AS region_code,
     UPPER(TRIM(category)) AS category,
-    UPPER(TRIM(particular)) AS particular,
-    UPPER(TRIM(region_code)) AS region_code,
-    obligation_amount,
-    1 AS source_present
-FROM gold_obligations_prepared
-WHERE UPPER(TRIM(particular)) <> 'ALL'
-  AND UPPER(TRIM(category)) <> 'GRAND TOTAL';
+    CASE UPPER(TRIM(particular))
+      WHEN 'THE PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'PRESIDENTIAL COMMUNICATIONS OPERATIONS OFFICE' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'OFFICE OF THE PRESS SECRETARY' THEN 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+      WHEN 'DEBT SERVICE FUND-INTEREST PAYMENT' THEN 'DEBT INTEREST PAYMENTS'
+      ELSE UPPER(TRIM(particular))
+    END AS particular,
+    TRY_CAST(expenditure_amount AS DECIMAL(20,4)) AS amount,
+    CASE WHEN expenditure_amount IS NOT NULL
+              AND TRY_CAST(expenditure_amount AS DECIMAL(20,4)) IS NULL
+         THEN 1 ELSE 0 END AS invalid_numeric,
+    UPPER(TRIM(COALESCE(value_status, ''))) AS value_status
+  FROM pondolens.dev_silver.regional_obligations
+),
+agg_a AS (
+  SELECT year, region_code, category, particular,
+         SUM(amount) AS appropriation_amount,
+         COUNT(*) AS source_rows,
+         COUNT(amount) AS valid_rows,
+         SUM(invalid_numeric) AS invalid_numeric_rows
+  FROM a GROUP BY year, region_code, category, particular
+),
+agg_o AS (
+  SELECT year, region_code, category, particular,
+         SUM(amount) AS obligation_amount,
+         COUNT(*) AS source_rows,
+         COUNT(amount) AS valid_rows,
+         SUM(invalid_numeric) AS invalid_numeric_rows,
+         COUNT_IF(value_status NOT IN ('', 'REPORTED', 'VALID', 'ACTUAL', 'FINAL', 'REPORTED_ZERO', 'MISSING', 'NOT_REPORTED', 'NULL', 'NOT_AVAILABLE')) AS other_status_rows
+  FROM o GROUP BY year, region_code, category, particular
+)
+SELECT COALESCE(a.year,o.year) AS year,
+       COALESCE(a.region_code,o.region_code) AS region_code,
+       COALESCE(a.category,o.category) AS category,
+       COALESCE(a.particular,o.particular) AS particular,
+       a.appropriation_amount,
+       CASE
+         WHEN a.source_rows IS NULL THEN 'NOT_REPORTED'
+         WHEN a.valid_rows = 0 THEN 'MISSING_VALUE'
+         WHEN a.valid_rows < a.source_rows THEN 'PARTIALLY_REPORTED'
+         WHEN a.appropriation_amount = 0 THEN 'REPORTED_ZERO'
+         ELSE 'REPORTED'
+       END AS appropriation_value_status,
+       o.obligation_amount,
+       CASE
+         WHEN o.source_rows IS NULL THEN 'NOT_REPORTED'
+         WHEN o.valid_rows = 0 THEN 'MISSING_VALUE'
+         WHEN o.valid_rows < o.source_rows THEN 'PARTIALLY_REPORTED'
+         WHEN o.other_status_rows > 0 THEN 'REVIEW_SOURCE_STATUS'
+         WHEN o.obligation_amount = 0 THEN 'REPORTED_ZERO'
+         ELSE 'REPORTED'
+       END AS obligation_value_status,
+       a.source_rows AS appropriation_source_rows,
+       o.source_rows AS obligation_source_rows,
+       a.valid_rows AS valid_appropriation_rows,
+       a.invalid_numeric_rows AS invalid_appropriation_numeric_rows,
+       o.invalid_numeric_rows AS invalid_obligation_numeric_rows
+FROM agg_a a
+FULL OUTER JOIN agg_o o
+  ON a.year = o.year
+ AND a.region_code = o.region_code
+ AND a.category = o.category
+ AND a.particular = o.particular;
 
--- Stop if normalization produces duplicate source keys.
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate normalized source keys.')
-FROM (
-    SELECT 'APPROPRIATION' AS source,
-           year, category, particular, region_code
-    FROM gold_appropriations_normalized
-    GROUP BY year, category, particular, region_code
-    HAVING COUNT(*) > 1
+-- 2. Inspect source coverage and quality BEFORE loading.
+SELECT year, COUNT(*) AS grain_rows,
+       COUNT_IF(year IS NULL OR region_code IS NULL OR region_code = ''
+                OR category IS NULL OR category = ''
+                OR particular IS NULL OR particular = '') AS invalid_keys,
+       COUNT_IF(appropriation_source_rows > 0 AND valid_appropriation_rows < appropriation_source_rows) AS missing_or_partial_appropriations,
+       SUM(COALESCE(invalid_appropriation_numeric_rows, 0)) AS malformed_appropriation_values,
+       SUM(COALESCE(invalid_obligation_numeric_rows, 0)) AS malformed_obligation_values,
+       COUNT_IF(obligation_value_status IN ('MISSING_VALUE','PARTIALLY_REPORTED','REVIEW_SOURCE_STATUS')) AS obligations_to_review
+FROM budget_source_standardized GROUP BY year ORDER BY year;
 
-    UNION ALL
+-- 3. Map natural keys to dimensions.
+-- Location matching is by location_code; check that codes uniquely identify a location
+-- across geographic levels. If not, add a verified geographic-level mapping first.
+CREATE OR REPLACE TEMP VIEW budget_mapped AS
+SELECT s.*,
+       dy.year_id,
+       dl.location_id,
+       dp.particular_id
+FROM budget_source_standardized s
+LEFT JOIN pondolens.dev_gold.dim_year dy ON s.year = dy.year
+LEFT JOIN pondolens.dev_gold.dim_location dl
+  ON s.region_code = UPPER(TRIM(CAST(dl.location_code AS STRING)))
+LEFT JOIN pondolens.dev_gold.dim_particular dp
+  ON s.category = UPPER(TRIM(dp.category))
+ AND s.particular = UPPER(TRIM(dp.particular));
 
-    SELECT 'OBLIGATION',
-           year, category, particular, region_code
-    FROM gold_obligations_normalized
-    GROUP BY year, category, particular, region_code
-    HAVING COUNT(*) > 1
-);
+-- 4. Diagnostics: must be zero rows before creating the fact.
+SELECT year, region_code, category, particular,
+       COUNT(*) AS mapped_rows,
+       COUNT(DISTINCT year_id) AS year_matches,
+       COUNT(DISTINCT location_id) AS location_matches,
+       COUNT(DISTINCT particular_id) AS particular_matches
+FROM budget_mapped
+GROUP BY year, region_code, category, particular
+HAVING COUNT(*) <> 1 OR COUNT(year_id) <> 1
+    OR COUNT(location_id) <> 1 OR COUNT(particular_id) <> 1;
 
-CREATE OR REPLACE TEMP VIEW gold_regional_expenditure_prepared AS
+-- 5. Fail the build when source keys are invalid, dimensions are unmatched/ambiguous,
+-- or NON-NULL monetary values cannot be parsed. Genuine NULLs are allowed. Assertions work in Databricks SQL.
+SELECT assert_true(
+  COUNT_IF(year IS NULL OR region_code IS NULL OR region_code = ''
+           OR category IS NULL OR category = ''
+           OR particular IS NULL OR particular = ''
+           OR year_id IS NULL OR location_id IS NULL OR particular_id IS NULL
+           OR COALESCE(invalid_appropriation_numeric_rows, 0) > 0
+           OR COALESCE(invalid_obligation_numeric_rows, 0) > 0) = 0,
+  'Budget fact load stopped: invalid source values or unmatched dimension keys'
+) AS source_key_check
+FROM budget_mapped;
+
+SELECT assert_true(
+  COUNT(*) = COUNT(DISTINCT named_struct('y', year, 'l', region_code, 'c', category, 'p', particular)),
+  'Budget fact load stopped: dimension join multiplied source rows'
+) AS unique_source_grain_check
+FROM budget_mapped;
+
+SELECT assert_true(
+  COUNT(*) = COUNT(DISTINCT named_struct('y', year_id, 'l', location_id, 'p', particular_id)),
+  'Budget fact load stopped: duplicate fact foreign-key grain'
+) AS unique_fact_grain_check
+FROM budget_mapped;
+
+-- 6. Create Delta fact. Stable ID is deterministic for a fixed set of dimension IDs;
+-- it will remain stable on rebuilds only if dimension IDs do not change.
+-- xxhash64 is not collision-proof: enforce uniqueness with the check below.
+CREATE OR REPLACE TABLE pondolens.dev_gold.fact_regional_budget
+USING DELTA
+AS
 SELECT
-    COALESCE(a.year, o.year) AS year,
-    COALESCE(a.category, o.category) AS category,
-    COALESCE(a.particular, o.particular) AS particular,
-    COALESCE(a.region_code, o.region_code) AS region_code,
-    a.appropriation_amount,
-    o.obligation_amount,
-    CASE
-        WHEN a.source_present = 1 AND o.source_present = 1
-            THEN 'MATCHED'
-        WHEN a.source_present = 1 THEN 'APPROPRIATION_ONLY'
-        ELSE 'OBLIGATION_ONLY'
-    END AS match_status
-FROM gold_appropriations_normalized a
-FULL OUTER JOIN gold_obligations_normalized o
-    ON a.year = o.year
-   AND a.category = o.category
-   AND a.particular = o.particular
-   AND a.region_code = o.region_code;
+  xxhash64(year_id, location_id, particular_id) AS regional_budget_id,
+  CAST(year_id AS INT) AS year_id,
+  CAST(location_id AS INT) AS location_id,
+  CAST(particular_id AS INT) AS particular_id,
+  CAST(appropriation_amount AS DECIMAL(20,4)) AS appropriation_amount,
+  appropriation_value_status,
+  CAST(obligation_amount AS DECIMAL(20,4)) AS obligation_amount,
+  obligation_value_status,
+  CURRENT_TIMESTAMP() AS processed_at
+FROM budget_mapped;
 
--- Step 9: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty appropriation detail batch.')
-FROM gold_appropriations_normalized;
-SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty obligation detail batch.')
-FROM gold_obligations_normalized;
+-- 7. Post-load uniqueness and integrity checks.
+SELECT regional_budget_id, COUNT(*) AS row_count
+FROM pondolens.dev_gold.fact_regional_budget
+GROUP BY regional_budget_id HAVING COUNT(*) > 1;
 
--- Step 11: Notebook code cell
-SELECT ASSERT_TRUE(
-    COUNT(*) = COUNT(DISTINCT year_id) AND COUNT(*) = COUNT(DISTINCT year),
-    'Invalid year dimension keys.')
-FROM pondolens.dev_gold.dim_year;
+SELECT year_id, location_id, particular_id, COUNT(*) AS row_count
+FROM pondolens.dev_gold.fact_regional_budget
+GROUP BY year_id, location_id, particular_id HAVING COUNT(*) > 1;
 
-SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT location_id), 'Invalid location IDs.')
-FROM pondolens.dev_gold.dim_location;
+-- 8. Yearly totals for reconciliation with DETAIL-only source totals.
+SELECT y.year, COUNT(*) AS fact_rows,
+       SUM(f.appropriation_amount) AS total_appropriations,
+       SUM(f.obligation_amount) AS total_obligations,
+       COUNT_IF(f.obligation_amount IS NULL) AS missing_obligation_rows,
+       COUNT_IF(f.appropriation_amount IS NULL) AS missing_appropriation_rows
+FROM pondolens.dev_gold.fact_regional_budget f
+JOIN pondolens.dev_gold.dim_year y ON f.year_id = y.year_id
+GROUP BY y.year ORDER BY y.year;
 
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid normalized region keys.')
-FROM (
-    SELECT NULLIF(UPPER(TRIM(location_code)), '') AS code
-    FROM pondolens.dev_gold.dim_location
-    GROUP BY NULLIF(UPPER(TRIM(location_code)), '')
-    HAVING COUNT(*) > 1 OR code IS NULL
-);
-
-SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT particular_id), 'Invalid particular IDs.')
-FROM pondolens.dev_gold.dim_particular;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Invalid normalized particular keys.')
-FROM (
-    SELECT NULLIF(UPPER(TRIM(category)), '') AS category_key,
-           NULLIF(UPPER(TRIM(particular)), '') AS particular_key
-    FROM pondolens.dev_gold.dim_particular
-    GROUP BY NULLIF(UPPER(TRIM(category)), ''), NULLIF(UPPER(TRIM(particular)), '')
-    HAVING COUNT(*) > 1 OR category_key IS NULL OR particular_key IS NULL
-);
-
--- Step 12: Notebook code cell
-CREATE OR REPLACE TEMP VIEW gold_regional_expenditure_resolved AS
-SELECT y.year_id, r.location_id AS region_id, p.particular_id, s.*
-FROM gold_regional_expenditure_prepared s
-LEFT JOIN pondolens.dev_gold.dim_year y ON s.year = y.year
-LEFT JOIN pondolens.dev_gold.dim_location r
-    ON s.region_code = UPPER(TRIM(r.location_code))
-LEFT JOIN pondolens.dev_gold.dim_particular p
-    ON s.category = UPPER(TRIM(p.category))
-   AND s.particular = UPPER(TRIM(p.particular));
-
--- Step 13: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty fact batch.')
-FROM gold_regional_expenditure_resolved;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Unresolved dimension keys.')
-FROM gold_regional_expenditure_resolved
-WHERE year_id IS NULL
-   OR region_id IS NULL
-   OR particular_id IS NULL;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate fact observation keys.')
-FROM (
-    SELECT year_id, region_id, particular_id
-    FROM gold_regional_expenditure_resolved
-    GROUP BY year_id, region_id, particular_id
-    HAVING COUNT(*) > 1
-);
-
--- Step 15: Notebook code cell
-CREATE OR REPLACE TEMP VIEW gold_expenditure_reconciliation AS
-WITH expected AS (
-    SELECT 'APPROPRIATION' AS source, year, COUNT(*) AS rows,
-           COUNT(appropriation_amount) AS valued_rows, SUM(appropriation_amount) AS amount
-    FROM gold_appropriations_normalized GROUP BY year
-    UNION ALL
-    SELECT 'OBLIGATION', year, COUNT(*), COUNT(obligation_amount), SUM(obligation_amount)
-    FROM gold_obligations_normalized GROUP BY year
-), actual AS (
-    SELECT 'APPROPRIATION' AS source, year, COUNT(*) AS rows,
-           COUNT(appropriation_amount) AS valued_rows, SUM(appropriation_amount) AS amount
-    FROM gold_regional_expenditure_resolved
-    WHERE match_status IN ('MATCHED', 'APPROPRIATION_ONLY') GROUP BY year
-    UNION ALL
-    SELECT 'OBLIGATION', year, COUNT(*), COUNT(obligation_amount), SUM(obligation_amount)
-    FROM gold_regional_expenditure_resolved
-    WHERE match_status IN ('MATCHED', 'OBLIGATION_ONLY') GROUP BY year
-)
-SELECT e.source, e.year, e.rows AS source_rows, a.rows AS resolved_rows,
-       e.amount AS source_amount, a.amount AS resolved_amount,
-       (e.rows <=> a.rows) AND (e.valued_rows <=> a.valued_rows)
-       AND (e.amount <=> a.amount) AS passed
-FROM expected e FULL OUTER JOIN actual a
-    ON e.source = a.source AND e.year = a.year;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Source reconciliation failed.')
-FROM gold_expenditure_reconciliation WHERE NOT passed OR passed IS NULL;
-
--- Step 17: Notebook code cell
-SET TIME ZONE 'UTC';
-
-CREATE TABLE IF NOT EXISTS pondolens.dev_gold.fact_regional_expenditure (
-    fact_regional_expenditure_id BIGINT NOT NULL,
-    year_id INT NOT NULL,
-    region_id INT NOT NULL,
-    particular_id INT NOT NULL,
-    appropriation_amount DECIMAL(20,4),
-    obligation_amount DECIMAL(20,4),
-    spending_difference DECIMAL(20,4),
-    difference_percent DECIMAL(20,4)
-)
-USING DELTA;
-
--- Step 18: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty fact batch.')
-FROM gold_regional_expenditure_resolved;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Unresolved dimension keys.')
-FROM gold_regional_expenditure_resolved
-WHERE year_id IS NULL OR region_id IS NULL OR particular_id IS NULL;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate source fact keys.')
-FROM (
-    SELECT year_id, region_id, particular_id
-    FROM gold_regional_expenditure_resolved
-    GROUP BY year_id, region_id, particular_id
-    HAVING COUNT(*) > 1
-);
-
-SELECT ASSERT_TRUE(
-    COUNT(*) = COUNT(DISTINCT fact_regional_expenditure_id)
-    AND COALESCE(COUNT_IF(fact_regional_expenditure_id < 60000), 0) = 0,
-    'Invalid or duplicate target IDs.'
-)
-FROM pondolens.dev_gold.fact_regional_expenditure;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate target fact keys.')
-FROM (
-    SELECT year_id, region_id, particular_id
-    FROM pondolens.dev_gold.fact_regional_expenditure
-    GROUP BY year_id, region_id, particular_id
-    HAVING COUNT(*) > 1
-);
-
--- Step 19: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Target has unresolved dimension references.')
-FROM pondolens.dev_gold.fact_regional_expenditure t
-LEFT JOIN pondolens.dev_gold.dim_year y ON t.year_id = y.year_id
-LEFT JOIN pondolens.dev_gold.dim_location r ON t.region_id = r.location_id
-LEFT JOIN pondolens.dev_gold.dim_particular p ON t.particular_id = p.particular_id
-WHERE y.year_id IS NULL OR r.location_id IS NULL OR p.particular_id IS NULL;
-
--- Step 21: Notebook code cell
-CREATE OR REPLACE TEMP VIEW gold_regional_expenditure_upsert AS
-SELECT
-    COALESCE(t.fact_regional_expenditure_id,
-        m.next_id - 1 + ROW_NUMBER() OVER (
-            PARTITION BY (t.fact_regional_expenditure_id IS NULL)
-            ORDER BY s.year_id, s.region_id, s.particular_id
-        )
-    ) AS fact_regional_expenditure_id,
-    s.year_id, s.region_id, s.particular_id,
-    CAST(s.appropriation_amount AS DECIMAL(20,4)) AS appropriation_amount,
-    CAST(s.obligation_amount AS DECIMAL(20,4)) AS obligation_amount,
-    CAST(s.appropriation_amount - s.obligation_amount AS DECIMAL(20,4)) AS spending_difference,
-    CAST(((s.appropriation_amount - s.obligation_amount) /
-         NULLIF(s.appropriation_amount, 0)) * 100 AS DECIMAL(20,4)) AS difference_percent
-FROM gold_regional_expenditure_resolved s
-LEFT JOIN pondolens.dev_gold.fact_regional_expenditure t
-    ON s.year_id = t.year_id AND s.region_id = t.region_id
-   AND s.particular_id = t.particular_id
-CROSS JOIN (
-    SELECT GREATEST(COALESCE(MAX(fact_regional_expenditure_id) + 1, 60000), 60000) AS next_id
-    FROM pondolens.dev_gold.fact_regional_expenditure
-) m;
-
--- Step 23: Notebook code cell
-MERGE INTO pondolens.dev_gold.fact_regional_expenditure t
-USING gold_regional_expenditure_upsert s
-ON t.year_id = s.year_id AND t.region_id = s.region_id
-   AND t.particular_id = s.particular_id
-WHEN MATCHED AND (
-       NOT (t.appropriation_amount <=> s.appropriation_amount)
-    OR NOT (t.obligation_amount <=> s.obligation_amount)
-    OR NOT (t.spending_difference <=> s.spending_difference)
-    OR NOT (t.difference_percent <=> s.difference_percent)
-) THEN UPDATE SET
-    t.appropriation_amount = s.appropriation_amount,
-    t.obligation_amount = s.obligation_amount,
-    t.spending_difference = s.spending_difference,
-    t.difference_percent = s.difference_percent
-WHEN NOT MATCHED THEN INSERT (
-    fact_regional_expenditure_id, year_id, region_id, particular_id,
-    appropriation_amount, obligation_amount, spending_difference, difference_percent
-) VALUES (
-    s.fact_regional_expenditure_id, s.year_id, s.region_id, s.particular_id,
-    s.appropriation_amount, s.obligation_amount, s.spending_difference, s.difference_percent
-);
-
--- Step 25: Notebook code cell
-SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT fact_regional_expenditure_id)
-    AND COALESCE(COUNT_IF(fact_regional_expenditure_id < 60000), 0) = 0,
-    'Duplicate or out-of-range fact IDs after MERGE.')
-FROM pondolens.dev_gold.fact_regional_expenditure;
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate fact keys after MERGE.')
-FROM (
-    SELECT year_id, region_id, particular_id
-    FROM pondolens.dev_gold.fact_regional_expenditure
-    GROUP BY year_id, region_id, particular_id HAVING COUNT(*) > 1
-);
-
-SELECT ASSERT_TRUE(COUNT(*) = 0, 'Post-MERGE reconciliation failed.')
-FROM gold_regional_expenditure_resolved s
-LEFT JOIN pondolens.dev_gold.fact_regional_expenditure t
-    ON s.year_id = t.year_id AND s.region_id = t.region_id
-   AND s.particular_id = t.particular_id
-WHERE t.fact_regional_expenditure_id IS NULL
-   OR NOT (CAST(s.appropriation_amount AS DECIMAL(20,4)) <=> t.appropriation_amount)
-   OR NOT (CAST(s.obligation_amount AS DECIMAL(20,4)) <=> t.obligation_amount)
-   OR NOT (CAST(s.appropriation_amount - s.obligation_amount AS DECIMAL(20,4))
-           <=> t.spending_difference)
-   OR NOT (CAST(((s.appropriation_amount - s.obligation_amount) /
-            NULLIF(s.appropriation_amount, 0)) * 100 AS DECIMAL(20,4))
-           <=> t.difference_percent);
-
-SELECT COUNT(*) AS total_rows,
-       COUNT(DISTINCT fact_regional_expenditure_id) AS unique_ids,
-       MIN(fact_regional_expenditure_id) AS first_id,
-       MAX(fact_regional_expenditure_id) AS last_id
-FROM pondolens.dev_gold.fact_regional_expenditure;
-
-SELECT year, match_status, COUNT(*) AS row_count
-FROM gold_regional_expenditure_resolved
-GROUP BY year, match_status ORDER BY year, match_status;
+-- Production notes:
+-- * Review source totals/subtotals and obligations location_type before running;
+--   the provided dimension screenshot does not define a safe location_type crosswalk.
+-- * value_status vocabulary is not yet confirmed; review REVIEW_SOURCE_STATUS rows.
+-- * xxhash64 has a theoretical collision risk; use a persisted identity/key map if
+--   externally referenced IDs must have guaranteed collision-free stability.
+-- * The 126 verified 2021 Special Purpose Fund appropriation NULLs are permitted.
+--   They remain NULL and receive MISSING_VALUE (or PARTIALLY_REPORTED when mixed).
+-- * This script is a full refresh, not an incremental MERGE.
