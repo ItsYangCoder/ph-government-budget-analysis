@@ -136,7 +136,7 @@ _ingested_at
 _rescued_data
 ```
 
-The audit table is `<catalog>.<schema>.gdrive_ingestion_log`. It records each
+The audit table is `pondolens.dev_bronze.gdrive_ingestion_log`. It records each
 dataset's status, loaded row count, file count, rescued row count, and timing.
 Audit logging can fail separately from a table commit; inspect the target table
 when investigating failures.
