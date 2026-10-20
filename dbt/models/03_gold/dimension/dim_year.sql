@@ -1,5 +1,5 @@
 %sql
--- Creates the table dim_year
+-- Creates the gold table for dim_year
 CREATE OR REPLACE TABLE pondolens.dev_gold.dim_year
 USING DELTA
 AS
