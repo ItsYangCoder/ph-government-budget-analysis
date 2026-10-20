@@ -1,5 +1,5 @@
 -- PondoLens | Unemployment Rate Bronze -> Silver | Databricks SQL
--- Initial ID: 3,000,000
+-- Initial ID: 3000000 (millions)
 -- Run sequentially in one SQL session, with a single writer and a complete Bronze batch.
 CREATE SCHEMA IF NOT EXISTS pondolens.dev_silver;
 
