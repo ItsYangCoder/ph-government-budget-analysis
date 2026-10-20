@@ -1,3 +1,11 @@
+-- Dataset: service_access
+-- Table: pondolens.dev_bronze.service_access
+-- Owner: Joy
+-- Scope: reference_only
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- Service access — Bronze profiling
 -- Prepared for Joy / PondoLens, 20 October 2026.
 -- Run in one Databricks SQL session. Only TEMP VIEWs are created.

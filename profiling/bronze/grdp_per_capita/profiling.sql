@@ -1,3 +1,11 @@
+-- Dataset: grdp_per_capita
+-- Table: pondolens.dev_bronze.grdp_per_capita
+-- Owner: Anjelika Marquez
+-- Scope: active
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- GRDP per capita | Bronze profiling | Assigned to: Anje
 -- Run in order in one Databricks SQL session.
 -- Reads persistent tables; creates session-scoped temporary views only.

@@ -1,3 +1,11 @@
+-- Dataset: unemployment_rate
+-- Table: pondolens.dev_bronze.unemployment_rate
+-- Owner: Anjelika Marquez
+-- Scope: active
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- Unemployment Rate: Bronze profiling
 -- Run in one Databricks SQL session. Source tables are unchanged.
 -- Snapshot results are documented in findings.md.

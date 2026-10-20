@@ -32,3 +32,12 @@ jobs:
 
       - name: Check Python files and notebooks
         run: python scripts/check_code.py
+
+      - name: Install profiling check dependencies
+        run: python -m pip install -r profiling/requirements-checks.txt
+
+      - name: Validate profiling packages
+        run: python scripts/check_profiling.py
+
+      - name: Test profiling SQL guard
+        run: python -m pytest -q tests/unit/test_profiling_checks.py

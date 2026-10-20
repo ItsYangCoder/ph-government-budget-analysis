@@ -1,3 +1,11 @@
+-- Dataset: regional_appropriation
+-- Table: pondolens.dev_bronze.regional_appropriation
+-- Owner: Razzelle Boreros
+-- Scope: active
+-- Execute the complete file in one Databricks SQL session.
+-- Persistent tables are read-only; session TEMP VIEWs are allowed.
+-- Evidence and unresolved checks: findings.md. Column definitions: data_dictionary.md.
+
 -- Regional appropriations profiling 
 -- Documented by: Razzelle Boreros
 -- Read-only profiling; temporary views do not change Bronze.

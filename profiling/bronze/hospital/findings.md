@@ -34,3 +34,7 @@ Hospital counts do not measure beds, staffing, facility size, patient capacity, 
 ## Silver treatment
 
 Cast year and counts to integers; trim and map region names with the shared crosswalk; standardize the type and unit; preserve source metadata; and enforce uniqueness on year, standardized region, and hospital type. Keep unavailable years missing and do not impute 2025.
+
+## Consolidated SQL execution status
+
+The revised SQL replaces the notebook export and adds strict parsing, year-aware distinct crosswalk mapping and lineage checks. These revised checks require a Databricks rerun; the historical results above are not new execution evidence. Missing Total/Private categories receive NOT_COMPARABLE rather than a reconciliation pass.
