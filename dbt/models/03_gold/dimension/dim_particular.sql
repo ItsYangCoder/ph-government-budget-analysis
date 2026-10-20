@@ -1,10 +1,21 @@
--- ============================================================
--- PondoLens | Gold: dim_particular
--- Author: Christine Joy D. Balansay
---
+
+
 -- Object: persistent Delta table
--- Grain: one category × standardized particular
--- IDs: fixed registry; never renumber existing definitions
+-- Grain: category × canonical agency/fund
+-- IDs: fixed; preserve existing assignments
+--
+-- OFFICE OF THE PRESS SECRETARY is an alias of:
+--   30033 = PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)
+--
+-- 30051 is retired and must never be reused.
+-- Any existing 30051 row is retained temporarily until all
+-- dependent fact references have been migrated.
+-- ============================================================
+
+
+-- ============================================================
+-- 1. APPROVED CANONICAL REGISTRY
+-- 51 entries including UNKNOWN.
 -- ============================================================
 
 CREATE OR REPLACE TEMP VIEW dim_particular_seed AS
@@ -60,33 +71,36 @@ FROM VALUES
     (30047, 'AUTOMATIC APPROPRIATIONS', 'BARMM - ANNUAL BLOCK GRANT'),
     (30048, 'AUTOMATIC APPROPRIATIONS', 'DEBT INTEREST PAYMENTS'),
     (30049, 'AUTOMATIC APPROPRIATIONS', 'NATIONAL TAX ALLOTMENT'),
-    (30050, 'AUTOMATIC APPROPRIATIONS', 'NET LENDING'),
-    (30051, 'DEPARTMENTS', 'OFFICE OF THE PRESS SECRETARY')
+    (30050, 'AUTOMATIC APPROPRIATIONS', 'NET LENDING')
 AS r(particular_id, category, particular);
 
 
 -- ============================================================
--- VALIDATE SEED
--- Update expected count when adding approved registry entries.
+-- 2. VALIDATE REGISTRY
 -- ============================================================
 
 SELECT ASSERT_TRUE(
-    COUNT(*) = 52
-    AND COUNT(DISTINCT particular_id) = 52
+    COUNT(*) = 51
+    AND COUNT(DISTINCT particular_id) = 51
     AND COUNT_IF(
         particular_id IS NULL
-        OR particular_id NOT BETWEEN 30000 AND 39999
+        OR particular_id NOT BETWEEN 30000 AND 30050
         OR category IS NULL OR TRIM(category) = ''
         OR particular IS NULL OR TRIM(particular) = ''
-    ) = 0,
-    'STOP: Invalid seed count, IDs, or required fields.'
+    ) = 0
+    AND COUNT_IF(
+        particular_id = 30033
+        AND category = 'DEPARTMENTS'
+        AND particular = 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+    ) = 1,
+    'STOP: Invalid canonical registry or PCO definition.'
 )
 FROM dim_particular_seed;
 
 
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
-    'STOP: Duplicate seed business keys.'
+    'STOP: Duplicate registry business keys.'
 )
 FROM (
     SELECT category, particular
@@ -97,24 +111,23 @@ FROM (
 
 
 -- ============================================================
--- CREATE PERSISTENT TABLE
--- Keeps the existing three-column contract.
+-- 3. CREATE PERSISTENT DELTA TABLE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS pondolens.dev_gold.dim_particular (
     particular_id INT NOT NULL
-        COMMENT 'Stable fixed identifier; 30000 represents UNKNOWN',
+        COMMENT 'Stable identifier; 30000 UNKNOWN; 30051 retired',
     category STRING NOT NULL
         COMMENT 'Standard agency or fund category',
     particular STRING NOT NULL
-        COMMENT 'Standard agency or fund name, uppercase'
+        COMMENT 'Canonical agency or fund name, uppercase'
 )
 USING DELTA
-COMMENT 'Fixed particular registry used by fact_regional_expenditure.';
+COMMENT 'Fixed canonical particular registry for expenditure facts.';
 
 
 -- ============================================================
--- VALIDATE EXISTING TARGET
+-- 4. VALIDATE EXISTING TARGET
 -- ============================================================
 
 SELECT ASSERT_TRUE(
@@ -125,7 +138,7 @@ SELECT ASSERT_TRUE(
         OR category IS NULL OR TRIM(category) = ''
         OR particular IS NULL OR TRIM(particular) = ''
     ) = 0,
-    'STOP: Invalid or duplicate existing dimension IDs.'
+    'STOP: Invalid existing dimension IDs or attributes.'
 )
 FROM pondolens.dev_gold.dim_particular;
 
@@ -142,10 +155,10 @@ FROM (
 ) duplicates;
 
 
--- An existing ID cannot acquire a different definition.
+-- Preserve existing ID-to-definition assignments.
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
-    'STOP: Existing ID conflicts with the approved definition.'
+    'STOP: Existing ID conflicts with the approved registry.'
 )
 FROM pondolens.dev_gold.dim_particular t
 JOIN dim_particular_seed s
@@ -154,7 +167,6 @@ WHERE NOT (t.category <=> s.category)
    OR NOT (t.particular <=> s.particular);
 
 
--- An existing definition cannot receive a different ID.
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
     'STOP: Existing definition has a different ID.'
@@ -166,9 +178,22 @@ JOIN dim_particular_seed s
 WHERE t.particular_id <> s.particular_id;
 
 
+-- Any retained 30051 entry must remain the original legacy definition.
+SELECT ASSERT_TRUE(
+    COUNT(*) = 0,
+    'STOP: Retired ID 30051 has an unexpected definition.'
+)
+FROM pondolens.dev_gold.dim_particular
+WHERE particular_id = 30051
+  AND (
+      NOT (category <=> 'DEPARTMENTS')
+      OR NOT (particular <=> 'OFFICE OF THE PRESS SECRETARY')
+  );
+
+
 -- ============================================================
--- INSERT MISSING DEFINITIONS
--- Existing definitions are preserved; no automatic deletion.
+-- 5. INSERT MISSING CANONICAL DEFINITIONS
+-- No deletion while legacy facts may still reference 30051.
 -- ============================================================
 
 MERGE INTO pondolens.dev_gold.dim_particular t
@@ -188,30 +213,42 @@ VALUES (
 
 
 -- ============================================================
--- POST-LOAD VALIDATION
+-- 6. VERIFY ALL ACTIVE DEFINITIONS
 -- ============================================================
 
 SELECT ASSERT_TRUE(
-    COUNT(*) = 52
+    COUNT(*) = 51
     AND COUNT_IF(
         t.particular_id IS NULL
         OR NOT (t.category <=> s.category)
         OR NOT (t.particular <=> s.particular)
     ) = 0,
-    'STOP: Saved dimension does not match the approved registry.'
+    'STOP: Saved canonical definitions do not match the registry.'
 )
 FROM dim_particular_seed s
 LEFT JOIN pondolens.dev_gold.dim_particular t
     ON s.particular_id = t.particular_id;
 
 
+-- ============================================================
+-- 7. FINAL RESULTS
+-- Active registry excludes retired 30051.
+-- ============================================================
+
 SELECT
-    COUNT(*) AS total_rows,
-    COUNT(DISTINCT particular_id) AS unique_ids
-FROM pondolens.dev_gold.dim_particular;
+    COUNT(*) AS active_registry_rows,
+    COUNT(DISTINCT t.particular_id) AS active_unique_ids
+FROM pondolens.dev_gold.dim_particular t
+JOIN dim_particular_seed s
+    ON t.particular_id = s.particular_id;
 
 
 SELECT *
 FROM pondolens.dev_gold.dim_particular
-WHERE particular_id IN (30033, 30051)
-ORDER BY particular_id;
+WHERE particular_id = 30033;
+
+
+SELECT
+    COUNT(*) AS retained_legacy_rows
+FROM pondolens.dev_gold.dim_particular
+WHERE particular_id = 30051;

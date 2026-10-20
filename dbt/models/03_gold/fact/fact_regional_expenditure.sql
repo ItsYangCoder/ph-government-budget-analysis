@@ -3,22 +3,26 @@
 -- Author: Christine Joy D. Balansay
 --
 -- Grain: year × location × particular
--- Measures: appropriation and obligation, in PHP
--- Fact IDs: start at 60001; preserved on reruns
+-- Amounts: PHP; no additional multiplier
+-- Fact IDs: start at 60001; preserve existing IDs
 --
--- Source dash/blank → NULL amount with explicit status.
--- Missing counterpart → NULL amount with NOT_IN_SOURCE.
--- Press Secretary remains separate from PCO.
+-- OFFICE OF THE PRESS SECRETARY → PCO, particular_id 30033.
+-- Legacy 30051 fact rows are removed only after validation.
+--
+-- Run all statements in order, in one session.
+-- One writer only; keep Silver/dimensions unchanged during run.
+-- Stop on any error.
 -- ============================================================
 
+-- RESULT 1
 SET TIME ZONE 'UTC';
 
 
 -- ============================================================
--- 1. SHARED NAME NORMALIZATION
--- Same aliases as dim_particular.
+-- 1. NAME NORMALIZATION
 -- ============================================================
 
+-- RESULT 2
 CREATE OR REPLACE TEMP VIEW fre_particular_map AS
 SELECT *
 FROM VALUES
@@ -31,6 +35,10 @@ FROM VALUES
         'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
     ),
     (
+        'OFFICE OF THE PRESS SECRETARY',
+        'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+    ),
+    (
         'DEBT SERVICE FUND-INTEREST PAYMENT',
         'DEBT INTEREST PAYMENTS'
     )
@@ -39,9 +47,9 @@ AS m(source_particular, standard_particular);
 
 -- ============================================================
 -- 2. NORMALIZE SILVER SOURCES
--- No additional multiplication: Silver amounts are treated as PHP.
 -- ============================================================
 
+-- RESULT 3
 CREATE OR REPLACE TEMP VIEW fre_appropriations AS
 SELECT
     s.gaa_id,
@@ -55,19 +63,18 @@ SELECT
     ) AS particular,
     CAST(s.appropriation_amount AS DECIMAL(20, 4))
         AS appropriation_amount,
-
     CASE
         WHEN s.appropriation_amount IS NULL THEN 'SOURCE_NULL'
         WHEN s.appropriation_amount = 0 THEN 'REPORTED_ZERO'
         ELSE 'REPORTED'
     END AS appropriation_value_status
-
 FROM pondolens.dev_silver.regional_appropriations s
 LEFT JOIN fre_particular_map m
     ON UPPER(REGEXP_REPLACE(TRIM(s.particular), r'\s+', ' '))
         = m.source_particular;
 
 
+-- RESULT 4
 CREATE OR REPLACE TEMP VIEW fre_obligations AS
 SELECT
     s.obligation_id,
@@ -79,17 +86,14 @@ SELECT
         m.standard_particular,
         UPPER(REGEXP_REPLACE(TRIM(s.particular), r'\s+', ' '))
     ) AS particular,
-
     CAST(s.expenditure_amount AS DECIMAL(20, 4))
         AS source_amount,
     LOWER(TRIM(s.value_status)) AS source_status,
-
     CASE
         WHEN LOWER(TRIM(s.value_status)) = 'numeric'
             THEN CAST(s.expenditure_amount AS DECIMAL(20, 4))
         ELSE CAST(NULL AS DECIMAL(20, 4))
     END AS obligation_amount,
-
     CASE
         WHEN LOWER(TRIM(s.value_status)) = 'numeric'
              AND s.expenditure_amount = 0
@@ -102,7 +106,6 @@ SELECT
             THEN 'SOURCE_BLANK'
         ELSE 'INVALID_SOURCE_STATUS'
     END AS obligation_value_status
-
 FROM pondolens.dev_silver.regional_obligations s
 LEFT JOIN fre_particular_map m
     ON UPPER(REGEXP_REPLACE(TRIM(s.particular), r'\s+', ' '))
@@ -110,10 +113,10 @@ LEFT JOIN fre_particular_map m
 
 
 -- ============================================================
--- 3. VALIDATE SOURCE RECORDS
--- Unexpected totals, missing keys, and unsupported statuses stop load.
+-- 3. VALIDATE SOURCE DATA
 -- ============================================================
 
+-- RESULT 5
 SELECT ASSERT_TRUE(
     COUNT(*) > 0
     AND COUNT(*) = COUNT(DISTINCT gaa_id)
@@ -128,11 +131,12 @@ SELECT ASSERT_TRUE(
         OR region_code IN ('TOTAL', 'GRAND TOTAL')
         OR appropriation_amount < 0
     ) = 0,
-    'STOP: Invalid appropriation IDs, keys, scope, totals, or amounts.'
+    'STOP: Invalid appropriation source records.'
 )
 FROM fre_appropriations;
 
 
+-- RESULT 6
 SELECT ASSERT_TRUE(
     COUNT(*) > 0
     AND COUNT(*) = COUNT(DISTINCT obligation_id)
@@ -148,27 +152,33 @@ SELECT ASSERT_TRUE(
         OR source_status IS NULL
         OR source_status NOT IN ('numeric', 'dash', 'blank')
         OR source_amount < 0
-        OR (source_status = 'numeric' AND source_amount IS NULL)
+        OR (
+            source_status = 'numeric'
+            AND source_amount IS NULL
+        )
         OR (
             source_status IN ('dash', 'blank')
             AND source_amount IS NOT NULL
             AND source_amount <> 0
         )
     ) = 0,
-    'STOP: Invalid obligation IDs, keys, scope, amounts, or source statuses.'
+    'STOP: Invalid obligation source records or statuses.'
 )
 FROM fre_obligations;
 
 
--- Check uniqueness AFTER alias normalization.
+-- RESULT 7
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
-    'STOP: Duplicate normalized source business keys.'
+    'STOP: Duplicate source keys after canonical mapping.'
 )
 FROM (
     SELECT
         'appropriations' AS dataset,
-        year, region_code, category, particular
+        year,
+        region_code,
+        category,
+        particular
     FROM fre_appropriations
     GROUP BY year, region_code, category, particular
     HAVING COUNT(*) > 1
@@ -177,7 +187,10 @@ FROM (
 
     SELECT
         'obligations' AS dataset,
-        year, region_code, category, particular
+        year,
+        region_code,
+        category,
+        particular
     FROM fre_obligations
     GROUP BY year, region_code, category, particular
     HAVING COUNT(*) > 1
@@ -185,32 +198,36 @@ FROM (
 
 
 -- ============================================================
--- 4. VALIDATE DIMENSION UNIQUENESS
+-- 4. VALIDATE DIMENSIONS
 -- ============================================================
 
+-- RESULT 8
 SELECT ASSERT_TRUE(
     COUNT(*) > 0
     AND COUNT(*) = COUNT(DISTINCT location_id)
     AND COUNT(*) = COUNT(DISTINCT UPPER(TRIM(location_code)))
     AND COUNT_IF(
         location_id IS NULL
-        OR location_code IS NULL OR TRIM(location_code) = ''
+        OR location_code IS NULL
+        OR TRIM(location_code) = ''
     ) = 0,
-    'STOP: Invalid or duplicate location keys.'
+    'STOP: Invalid location dimension.'
 )
 FROM pondolens.dev_gold.dim_location;
 
 
+-- RESULT 9
 SELECT ASSERT_TRUE(
     COUNT(*) > 0
     AND COUNT(*) = COUNT(DISTINCT year_id)
     AND COUNT(*) = COUNT(DISTINCT year)
     AND COUNT_IF(year_id IS NULL OR year IS NULL) = 0,
-    'STOP: Invalid or duplicate year keys.'
+    'STOP: Invalid year dimension.'
 )
 FROM pondolens.dev_gold.dim_year;
 
 
+-- RESULT 10
 SELECT ASSERT_TRUE(
     COUNT(*) > 0
     AND COUNT(*) = COUNT(DISTINCT particular_id)
@@ -218,12 +235,18 @@ SELECT ASSERT_TRUE(
         particular_id IS NULL
         OR category IS NULL OR TRIM(category) = ''
         OR particular IS NULL OR TRIM(particular) = ''
-    ) = 0,
-    'STOP: Invalid or duplicate particular IDs.'
+    ) = 0
+    AND COUNT_IF(
+        particular_id = 30033
+        AND category = 'DEPARTMENTS'
+        AND particular = 'PRESIDENTIAL COMMUNICATIONS OFFICE (PCO)'
+    ) = 1,
+    'STOP: Invalid particular dimension or canonical PCO ID.'
 )
 FROM pondolens.dev_gold.dim_particular;
 
 
+-- RESULT 11
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
     'STOP: Duplicate normalized dimension definitions.'
@@ -241,33 +264,28 @@ FROM (
 
 
 -- ============================================================
--- 5. COMBINE SOURCES AT THEIR SHARED BUSINESS GRAIN
--- FULL OUTER JOIN preserves unmatched source observations.
+-- 5. COMBINE APPROPRIATIONS AND OBLIGATIONS
 -- ============================================================
 
+-- RESULT 12
 CREATE OR REPLACE TEMP VIEW fre_combined AS
 SELECT
     COALESCE(a.year, o.year) AS year,
     COALESCE(a.region_code, o.region_code) AS region_code,
     COALESCE(a.category, o.category) AS category,
     COALESCE(a.particular, o.particular) AS particular,
-
     a.gaa_id,
     o.obligation_id,
     a.appropriation_amount,
-
     CASE
         WHEN a.gaa_id IS NULL THEN 'NOT_IN_SOURCE'
         ELSE a.appropriation_value_status
     END AS appropriation_value_status,
-
     o.obligation_amount,
-
     CASE
         WHEN o.obligation_id IS NULL THEN 'NOT_IN_SOURCE'
         ELSE o.obligation_value_status
     END AS obligation_value_status
-
 FROM fre_appropriations a
 FULL OUTER JOIN fre_obligations o
     ON a.year = o.year
@@ -276,19 +294,22 @@ FULL OUTER JOIN fre_obligations o
    AND a.particular = o.particular;
 
 
--- Confirm each source row survived exactly once.
+-- RESULT 13
 SELECT ASSERT_TRUE(
     COUNT(gaa_id) = (SELECT COUNT(*) FROM fre_appropriations)
-    AND COUNT(obligation_id) = (SELECT COUNT(*) FROM fre_obligations),
-    'STOP: Source combination lost or multiplied records.'
+    AND COUNT(obligation_id) = (
+        SELECT COUNT(*) FROM fre_obligations
+    ),
+    'STOP: Source combination lost or multiplied observations.'
 )
 FROM fre_combined;
 
 
 -- ============================================================
--- 6. RESOLVE DIMENSION KEYS
+-- 6. RESOLVE FOREIGN KEYS
 -- ============================================================
 
+-- RESULT 14
 CREATE OR REPLACE TEMP VIEW fre_mapped AS
 SELECT
     y.year_id,
@@ -298,21 +319,15 @@ SELECT
     s.appropriation_value_status,
     s.obligation_amount,
     s.obligation_value_status,
-
-    -- Diagnostic attributes
     s.year,
     s.region_code,
     s.category,
     s.particular
-
 FROM fre_combined s
-
 LEFT JOIN pondolens.dev_gold.dim_year y
     ON s.year = y.year
-
 LEFT JOIN pondolens.dev_gold.dim_location l
     ON s.region_code = UPPER(TRIM(l.location_code))
-
 LEFT JOIN pondolens.dev_gold.dim_particular d
     ON s.category =
         UPPER(REGEXP_REPLACE(TRIM(d.category), r'\s+', ' '))
@@ -320,6 +335,7 @@ LEFT JOIN pondolens.dev_gold.dim_particular d
         UPPER(REGEXP_REPLACE(TRIM(d.particular), r'\s+', ' '));
 
 
+-- RESULT 15
 -- Expected: NO ROWS.
 SELECT
     year,
@@ -333,25 +349,27 @@ FROM fre_mapped
 WHERE year_id IS NULL
    OR location_id IS NULL
    OR particular_id IS NULL
-   OR particular_id = 30000;
+   OR particular_id IN (30000, 30051);
 
 
+-- RESULT 16
 SELECT ASSERT_TRUE(
-    COUNT_IF(
+    COUNT(*) = (SELECT COUNT(*) FROM fre_combined)
+    AND COUNT_IF(
         year_id IS NULL
         OR location_id IS NULL
         OR particular_id IS NULL
-        OR particular_id = 30000
-    ) = 0
-    AND COUNT(*) = (SELECT COUNT(*) FROM fre_combined),
+        OR particular_id IN (30000, 30051)
+    ) = 0,
     'STOP: Missing dimension matches or multiplied joins.'
 )
 FROM fre_mapped;
 
 
+-- RESULT 17
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
-    'STOP: Duplicate mapped year/location/particular keys.'
+    'STOP: Duplicate mapped business keys.'
 )
 FROM (
     SELECT year_id, location_id, particular_id
@@ -362,9 +380,10 @@ FROM (
 
 
 -- ============================================================
--- 7. CREATE PERSISTENT DELTA FACT
+-- 7. CREATE AND VALIDATE TARGET
 -- ============================================================
 
+-- RESULT 18
 CREATE TABLE IF NOT EXISTS
 pondolens.dev_gold.fact_regional_expenditure (
     regional_expenditure_id BIGINT NOT NULL,
@@ -378,13 +397,10 @@ pondolens.dev_gold.fact_regional_expenditure (
     processed_at TIMESTAMP NOT NULL
 )
 USING DELTA
-COMMENT 'Appropriations and obligations in PHP by year, location, and particular.';
+COMMENT 'Appropriations and obligations in PHP using canonical particular IDs.';
 
 
--- ============================================================
--- 8. VALIDATE EXISTING TARGET BEFORE WRITING
--- ============================================================
-
+-- RESULT 19
 SELECT ASSERT_TRUE(
     COUNT(*) = COUNT(DISTINCT regional_expenditure_id)
     AND COUNT_IF(
@@ -394,14 +410,15 @@ SELECT ASSERT_TRUE(
         OR location_id IS NULL
         OR particular_id IS NULL
     ) = 0,
-    'STOP: Invalid or duplicate existing fact identifiers.'
+    'STOP: Invalid existing fact identifiers.'
 )
 FROM pondolens.dev_gold.fact_regional_expenditure;
 
 
+-- RESULT 20
 SELECT ASSERT_TRUE(
     COUNT(*) = 0,
-    'STOP: Existing fact contains duplicate business keys.'
+    'STOP: Duplicate existing fact business keys.'
 )
 FROM (
     SELECT year_id, location_id, particular_id
@@ -412,10 +429,87 @@ FROM (
 
 
 -- ============================================================
--- 9. ALLOCATE IDs FOR NEW KEYS ONLY
--- Single writer required; preserve existing IDs.
+-- 8. GUARDED LEGACY CLEANUP
+-- No-op if 30051 fact rows have already been removed.
 -- ============================================================
 
+-- RESULT 21
+SELECT ASSERT_TRUE(
+    COUNT(*) IN (0, 19)
+    AND COUNT_IF(
+        y.year IS NULL OR y.year <> 2023
+        OR s.particular_id IS NULL
+        OR NOT (
+            t.appropriation_amount <=> s.appropriation_amount
+        )
+        OR NOT (
+            t.appropriation_value_status
+            <=> s.appropriation_value_status
+        )
+        OR t.obligation_amount IS NOT NULL
+        OR NOT (
+            t.obligation_value_status <=> 'NOT_IN_SOURCE'
+        )
+    ) = 0,
+    'STOP: Legacy 30051 rows do not match the approved migration.'
+)
+FROM pondolens.dev_gold.fact_regional_expenditure t
+LEFT JOIN pondolens.dev_gold.dim_year y
+    ON t.year_id = y.year_id
+LEFT JOIN fre_mapped s
+    ON t.year_id = s.year_id
+   AND t.location_id = s.location_id
+   AND s.particular_id = 30033
+WHERE t.particular_id = 30051;
+
+
+-- RESULT 22
+-- General source omissions are not automatically deleted.
+SELECT ASSERT_TRUE(
+    COUNT(*) = 0,
+    'STOP: Unexpected target keys absent from the current source.'
+)
+FROM pondolens.dev_gold.fact_regional_expenditure t
+LEFT ANTI JOIN fre_mapped s
+    ON t.year_id = s.year_id
+   AND t.location_id = s.location_id
+   AND t.particular_id = s.particular_id
+WHERE t.particular_id <> 30051;
+
+
+-- RESULT 23
+-- Preserve any remaining legacy rows before cleanup.
+CREATE TABLE IF NOT EXISTS
+pondolens.dev_gold.fact_expenditure_legacy_30051_backup
+USING DELTA
+AS
+SELECT *
+FROM pondolens.dev_gold.fact_regional_expenditure
+WHERE particular_id = 30051;
+
+
+-- RESULT 24
+SELECT ASSERT_TRUE(
+    COUNT(*) = 0,
+    'STOP: Legacy backup does not contain the rows being removed.'
+)
+FROM (
+    SELECT *
+    FROM pondolens.dev_gold.fact_regional_expenditure
+    WHERE particular_id = 30051
+
+    EXCEPT ALL
+
+    SELECT *
+    FROM pondolens.dev_gold.fact_expenditure_legacy_30051_backup
+) differences;
+
+
+-- ============================================================
+-- 9. ALLOCATE IDs ONLY FOR NEW CANONICAL KEYS
+-- ============================================================
+
+-- RESULT 25
 CREATE OR REPLACE TEMP VIEW fre_new_ids AS
 SELECT
     s.year_id,
@@ -441,6 +535,7 @@ CROSS JOIN (
 ) m;
 
 
+-- RESULT 26
 CREATE OR REPLACE TEMP VIEW fre_upsert AS
 SELECT
     COALESCE(
@@ -455,30 +550,65 @@ SELECT
     s.obligation_amount,
     s.obligation_value_status
 FROM fre_mapped s
-
 LEFT JOIN pondolens.dev_gold.fact_regional_expenditure t
     ON s.year_id = t.year_id
    AND s.location_id = t.location_id
    AND s.particular_id = t.particular_id
-
 LEFT JOIN fre_new_ids n
     ON s.year_id = n.year_id
    AND s.location_id = n.location_id
    AND s.particular_id = n.particular_id;
 
 
+-- RESULT 27
+CREATE OR REPLACE TEMP VIEW fre_merge_actions AS
+SELECT
+    regional_expenditure_id,
+    year_id,
+    location_id,
+    particular_id,
+    appropriation_amount,
+    appropriation_value_status,
+    obligation_amount,
+    obligation_value_status,
+    'UPSERT' AS action_type
+FROM fre_upsert
+
+UNION ALL
+
+SELECT
+    regional_expenditure_id,
+    year_id,
+    location_id,
+    particular_id,
+    appropriation_amount,
+    appropriation_value_status,
+    obligation_amount,
+    obligation_value_status,
+    'DELETE_LEGACY' AS action_type
+FROM pondolens.dev_gold.fact_regional_expenditure
+WHERE particular_id = 30051;
+
+
 -- ============================================================
--- 10. PERSIST OBSERVATIONS
--- Unchanged records retain processed_at.
+-- 10. SAVE CANONICAL RECORDS AND REMOVE VALIDATED LEGACY ROWS
+-- Both actions happen in this single Delta MERGE.
 -- ============================================================
 
+-- RESULT 28: MERGE METRICS
 MERGE INTO pondolens.dev_gold.fact_regional_expenditure t
-USING fre_upsert s
+USING fre_merge_actions s
 ON  t.year_id = s.year_id
 AND t.location_id = s.location_id
 AND t.particular_id = s.particular_id
 
-WHEN MATCHED AND (
+WHEN MATCHED
+ AND s.action_type = 'DELETE_LEGACY'
+THEN DELETE
+
+WHEN MATCHED
+ AND s.action_type = 'UPSERT'
+ AND (
        NOT (t.appropriation_amount <=> s.appropriation_amount)
     OR NOT (
         t.appropriation_value_status
@@ -489,7 +619,7 @@ WHEN MATCHED AND (
         t.obligation_value_status
         <=> s.obligation_value_status
     )
-)
+ )
 THEN UPDATE SET
     t.appropriation_amount = s.appropriation_amount,
     t.appropriation_value_status = s.appropriation_value_status,
@@ -497,7 +627,9 @@ THEN UPDATE SET
     t.obligation_value_status = s.obligation_value_status,
     t.processed_at = CURRENT_TIMESTAMP()
 
-WHEN NOT MATCHED THEN INSERT (
+WHEN NOT MATCHED
+ AND s.action_type = 'UPSERT'
+THEN INSERT (
     regional_expenditure_id,
     year_id,
     location_id,
@@ -522,10 +654,33 @@ VALUES (
 
 
 -- ============================================================
--- 11. RECONCILE EVERY LOADED RECORD
--- Null-safe comparisons validate amounts and source statuses.
+-- 11. POST-LOAD VALIDATION
 -- ============================================================
 
+-- RESULT 29
+SELECT ASSERT_TRUE(
+    COUNT(*) = (SELECT COUNT(*) FROM fre_mapped)
+    AND COUNT(*) = COUNT(DISTINCT regional_expenditure_id)
+    AND COUNT_IF(particular_id = 30051) = 0,
+    'STOP: Unexpected final count, duplicate IDs, or legacy references.'
+)
+FROM pondolens.dev_gold.fact_regional_expenditure;
+
+
+-- RESULT 30
+SELECT ASSERT_TRUE(
+    COUNT(*) = 0,
+    'STOP: Duplicate final business keys.'
+)
+FROM (
+    SELECT year_id, location_id, particular_id
+    FROM pondolens.dev_gold.fact_regional_expenditure
+    GROUP BY year_id, location_id, particular_id
+    HAVING COUNT(*) > 1
+) duplicates;
+
+
+-- RESULT 31
 SELECT ASSERT_TRUE(
     COUNT(*) = (SELECT COUNT(*) FROM fre_mapped)
     AND COUNT_IF(
@@ -542,7 +697,7 @@ SELECT ASSERT_TRUE(
         )
         OR t.processed_at IS NULL
     ) = 0,
-    'STOP: Persisted amounts/statuses do not match validated source.'
+    'STOP: Saved observations differ from the canonical source.'
 )
 FROM fre_mapped s
 LEFT JOIN pondolens.dev_gold.fact_regional_expenditure t
@@ -551,101 +706,66 @@ LEFT JOIN pondolens.dev_gold.fact_regional_expenditure t
    AND s.particular_id = t.particular_id;
 
 
+-- RESULT 32
 SELECT ASSERT_TRUE(
-    COUNT(*) = COUNT(DISTINCT regional_expenditure_id),
-    'STOP: Duplicate persisted fact IDs.'
+    (
+        SUM(appropriation_amount) <=> (
+            SELECT SUM(appropriation_amount)
+            FROM fre_appropriations
+        )
+    )
+    AND (
+        SUM(obligation_amount) <=> (
+            SELECT SUM(obligation_amount)
+            FROM fre_obligations
+        )
+    )
+    AND COUNT(appropriation_amount) = (
+        SELECT COUNT(appropriation_amount)
+        FROM fre_appropriations
+    )
+    AND COUNT(obligation_amount) = (
+        SELECT COUNT(obligation_amount)
+        FROM fre_obligations
+    ),
+    'STOP: Financial totals or populated counts differ from Silver.'
 )
 FROM pondolens.dev_gold.fact_regional_expenditure;
 
 
-SELECT ASSERT_TRUE(
-    COUNT(*) = 0,
-    'STOP: Duplicate persisted fact business keys.'
-)
-FROM (
-    SELECT year_id, location_id, particular_id
-    FROM pondolens.dev_gold.fact_regional_expenditure
-    GROUP BY year_id, location_id, particular_id
-    HAVING COUNT(*) > 1
-) duplicates;
-
-
-SELECT ASSERT_TRUE(
-    COUNT_IF(
-        y.year_id IS NULL
-        OR l.location_id IS NULL
-        OR d.particular_id IS NULL
-        OR f.particular_id = 30000
-        OR f.processed_at IS NULL
-        OR f.appropriation_value_status IS NULL
-        OR f.obligation_value_status IS NULL
-
-        OR f.appropriation_value_status NOT IN (
-            'REPORTED', 'REPORTED_ZERO',
-            'SOURCE_NULL', 'NOT_IN_SOURCE'
-        )
-
-        OR f.obligation_value_status NOT IN (
-            'REPORTED', 'REPORTED_ZERO',
-            'SOURCE_DASH', 'SOURCE_BLANK', 'NOT_IN_SOURCE'
-        )
-
-        OR (
-            f.appropriation_value_status = 'REPORTED'
-            AND (
-                f.appropriation_amount IS NULL
-                OR f.appropriation_amount <= 0
-            )
-        )
-
-        OR (
-            f.obligation_value_status = 'REPORTED'
-            AND (
-                f.obligation_amount IS NULL
-                OR f.obligation_amount <= 0
-            )
-        )
-
-        OR (
-            f.appropriation_value_status = 'REPORTED_ZERO'
-            AND NOT (f.appropriation_amount <=> 0)
-        )
-
-        OR (
-            f.obligation_value_status = 'REPORTED_ZERO'
-            AND NOT (f.obligation_amount <=> 0)
-        )
-
-        OR (
-            f.appropriation_value_status IN (
-                'SOURCE_NULL', 'NOT_IN_SOURCE'
-            )
-            AND f.appropriation_amount IS NOT NULL
-        )
-
-        OR (
-            f.obligation_value_status IN (
-                'SOURCE_DASH', 'SOURCE_BLANK', 'NOT_IN_SOURCE'
-            )
-            AND f.obligation_amount IS NOT NULL
-        )
-    ) = 0,
-    'STOP: Invalid saved foreign keys or amount/status combinations.'
-)
-FROM pondolens.dev_gold.fact_regional_expenditure f
-LEFT JOIN pondolens.dev_gold.dim_year y
-    ON f.year_id = y.year_id
-LEFT JOIN pondolens.dev_gold.dim_location l
-    ON f.location_id = l.location_id
-LEFT JOIN pondolens.dev_gold.dim_particular d
-    ON f.particular_id = d.particular_id;
-
-
 -- ============================================================
 -- 12. FINAL RESULTS
--- SUM ignores NULL; inspect missing counts with the totals.
 -- ============================================================
 
+-- RESULT 33: OUTPUT A — OVERALL SUMMARY
+SELECT
+    COUNT(*) AS total_rows,
+    COUNT(DISTINCT regional_expenditure_id) AS unique_fact_ids,
+    COUNT_IF(particular_id = 30051) AS legacy_press_rows,
+    MIN(regional_expenditure_id) AS first_fact_id,
+    MAX(regional_expenditure_id) AS last_fact_id,
+    SUM(appropriation_amount) AS appropriation_php,
+    SUM(obligation_amount) AS reported_obligation_php
+FROM pondolens.dev_gold.fact_regional_expenditure;
+
+
+-- RESULT 34: OUTPUT B — CONSOLIDATED 2023 PCO
+SELECT
+    y.year,
+    f.particular_id,
+    COUNT(*) AS row_count,
+    COUNT(f.appropriation_amount) AS populated_appropriations,
+    SUM(f.appropriation_amount) AS appropriation_php,
+    SUM(f.obligation_amount) AS obligation_php
+FROM pondolens.dev_gold.fact_regional_expenditure f
+JOIN pondolens.dev_gold.dim_year y
+    ON f.year_id = y.year_id
+WHERE y.year = 2023
+  AND f.particular_id = 30033
+GROUP BY y.year, f.particular_id;
+
+
+-- RESULT 35: OUTPUT C — YEAR / GEOGRAPHIC COVERAGE
 SELECT
     y.year,
     l.geographic_level,
@@ -667,6 +787,7 @@ GROUP BY y.year, l.geographic_level
 ORDER BY y.year, l.geographic_level;
 
 
+-- RESULT 36: OUTPUT D — SOURCE STATUSES
 SELECT
     appropriation_value_status,
     obligation_value_status,
@@ -674,11 +795,3 @@ SELECT
 FROM pondolens.dev_gold.fact_regional_expenditure
 GROUP BY appropriation_value_status, obligation_value_status
 ORDER BY appropriation_value_status, obligation_value_status;
-
-
-SELECT
-    COUNT(*) AS total_rows,
-    COUNT(DISTINCT regional_expenditure_id) AS unique_fact_ids,
-    MIN(regional_expenditure_id) AS first_fact_id,
-    MAX(regional_expenditure_id) AS last_fact_id
-FROM pondolens.dev_gold.fact_regional_expenditure;
