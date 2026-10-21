@@ -43,7 +43,9 @@ Gold contains **five dimensions and three facts**. See the [data model](docs/dat
 |---|---|
 | Government budgets and obligations | [DBM BESF](https://www.dbm.gov.ph/index.php/test/1205-budget-of-expenditures-and-sources-of-financing) |
 | Population projections | [PSA population projections](https://psa.gov.ph/content/calabarzon-retain-top-spot-most-populous-region-until-2035) |
-| GRDP per capita | [PSA GRDP tables](https://psa.gov.ph/statistics/grdp/tables) |
+| GRDP per capita | [PSA GRDP data series](https://psa.gov.ph/statistics/grdp/data-series) |
+
+For other PSA indicators, browse [PSA OpenSTAT](https://openstat.psa.gov.ph/). Publisher websites provide original reports and tables; they are not drop-in ingestion files. Current releases can differ from the snapshot used in PondoLens.
 
 More datasets, source references, and coverage: [profiling index](profiling/README.md#dataset-index).
 
@@ -71,14 +73,14 @@ Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline
 
 Use your own Google Cloud project, service account, and Databricks credentials. The team's credentials are not included in this repository and are not required.
 
-1. **Get the data:** open [PondoLens prepared datasets](https://drive.google.com/drive/folders/1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB), download the folder contents, extract them, and upload them into a folder in your own Google Drive. Preserve the subfolders, file names, and formats so dataset routing still works. These are the prepared ingestion inputs, not a download of the original government publications.
+1. **Get the data:** download the reports or tables from the official websites in [Data sources](#data-sources). Select the matching years, measures, units, and geographic coverage using the [dataset dictionaries](profiling/README.md#dataset-index). Prepare the files in the expected long-form format, then upload them to your own Google Drive. This repository does not include the PDF/Excel extraction scripts or automatically download government reports.
 2. **Enable the API:** create a project in [Google Cloud Console](https://console.cloud.google.com/) and enable **Google Drive API** under APIs & Services → Library.
 3. **Create credentials:** go to IAM & Admin → Service Accounts, create an account, then open Keys → Add key → Create new key → JSON. This pipeline uses a service-account JSON key, not an API key or interactive OAuth login. See [Google's credential guide](https://developers.google.com/workspace/guides/create-credentials#service-account-credentials).
 4. **Grant access:** share your uploaded data folder with the service account's email address as **Viewer**. This allows the pipeline to read your copy.
 5. **Connect Databricks:** store your JSON key in your own Databricks secret scope/key. Set the runner's `secret_scope` and `secret_key` to those names. Keep the JSON out of Git and notebook outputs. See [credential setup](docs/ingestion.md#set-up-your-own-drive-connection) for details and the supported private-file option.
 6. **Use your folder ID:** copy the ID after `/folders/` in your Drive URL into `drive_folder_id`. Override the project default with your own ID, then run `dry_run=true` and review the file plan before loading.
 
-Downloading the datasets does not grant access to the team's service account or Databricks workspace. Run against your own folder and workspace.
+Use your own folder and workspace. The team's Drive folder, service-account credentials, and Databricks workspace are not provided as part of this setup.
 
 ## Documentation
 
