@@ -160,11 +160,7 @@ The initial separation produced 4,411 fact rows. After verification, 19 Press Se
 - PCO obligations were preserved and total financial amounts remained unchanged.
 - The maintained loader includes the alias, so regular reruns do not recreate separate rows.
 
-The current revised loader uses `fre_merge_actions` with `UPSERT` and guarded `DELETE_LEGACY` actions. Before any legacy deletion, it checks that there are zero or 19 affected rows, that they belong to 2023, that appropriation amounts/statuses match the canonical source, and that no obligation values would be discarded.
-
-Legacy rows are backed up in `pondolens.dev_gold.fact_expenditure_legacy_30051_backup` before deletion; the loader requires exact backup coverage of any rows it will remove. Existing backups are not overwritten. A mismatched backup stops the load for investigation. After cleanup, the legacy branch is a no-op.
-
-The upsert and legacy deletion occur in one Delta MERGE. General source omissions are not automatically deleted: unexpected nonlegacy target keys absent from the canonical source trigger validation failure.
+The active loader keeps the consolidated PCO alias. It stops if retired particular 30051 rows remain or if unexpected target keys are absent from the canonical source. Existing retired rows require a separate reviewed migration. See the [current Gold model](../../../../models/gold/fact_regional_expenditure.sql) for execution rules.
 
 ### Recorded results after consolidation
 
@@ -280,7 +276,6 @@ WHERE y.year = 2023 AND f.particular_id = 30033;
 | Temporary view not found | Run preparation statements in the same session; use saved-table checks for persistent state |
 | Missing mapping | Inspect source labels/codes and update approved dimension/alias definitions |
 | Duplicate normalized keys | Resolve the source collision; do not arbitrarily DISTINCT or sum financial rows |
-| Legacy backup mismatch | Stop and inspect target history and backups; do not bypass the guard |
 | Unexpected MERGE updates | Check changed sources, statuses, aliases, and the actual saved script version |
 | Wrong target schema | Prepare an explicit migration; do not drop the fact as a routine fix |
 | New particular | Allocate a new unused fixed ID; never reuse retired 30051 |
