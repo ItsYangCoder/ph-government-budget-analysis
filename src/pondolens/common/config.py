@@ -3,7 +3,7 @@ import argparse
 import re
 import sys
 DATASET_NAMES = ['agency_actuals', 'regional_appropriation', 'regional_obligations', 'population', 'unemployment_rate', 'poverty_incidence', 'service_access', 'grdp_per_capita', 'completion_rate', 'region_boundaries', 'hospital']
-DEFAULTS = {'catalog': 'pondolens', 'schema': 'dev_bronze', 'volume': 'government_budget', 'drive_folder_id': '1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB', 'auth_mode': 'secret', 'service_account_path': '/Workspace/Users/alumrhea@gmail.com/rock-loop-511408-h8-a51e825c4afe.json', 'secret_scope': 'pondolens', 'secret_key': 'gdrive-service-account', 'dataset': 'all', 'dry_run': 'true', 'sheet_overrides_json': '{}', 'allow_source_removal': 'false', 'allow_schema_removal': 'false', 'max_file_mb': '50', 'max_total_mb': '200', 'max_total_rows': '500000'}
+DEFAULTS = {'catalog': 'pondolens', 'schema': 'dev_bronze', 'volume': 'government_budget', 'drive_folder_id': '1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB', 'auth_mode': 'secret', 'service_account_path': '', 'secret_scope': 'pondolens', 'secret_key': 'gdrive-service-account', 'dataset': 'all', 'dry_run': 'true', 'sheet_overrides_json': '{}', 'allow_source_removal': 'false', 'allow_schema_removal': 'false', 'max_file_mb': '50', 'max_total_mb': '200', 'max_total_rows': '500000'}
 WIDGET_NAMES = ('catalog', 'schema', 'volume', 'drive_folder_id', 'secret_scope', 'secret_key', 'dataset', 'dry_run', 'sheet_overrides_json')
 FOLDER_MIME = 'application/vnd.google-apps.folder'
 SHEET_MIME = 'application/vnd.google-apps.spreadsheet'

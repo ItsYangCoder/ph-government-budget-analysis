@@ -8,7 +8,7 @@ Gold dim_year, dim_location, dim_age_group and fact_population now retain existi
 
 Crosswalk: new-schema CREATE, alias preparation and MERGE were kept. The old-schema BEGIN/IF column migration was removed from the recurring model to avoid splitting a scripting block; the expected seven-column schema is checked by usage/tests. Existing tables with the older schema need an explicit one-off migration. Shared validity years and NIR exceptions were not broadened.
 
-Population correction to earlier review: Silver explicitly filters sex = 'Both'. Gold now also explicitly filters 'Both', protecting its year/location/age-group grain if future Silver rows include other sexes. No new sex dimension or invented counts were added. Age totals and detail still overlap and must be filtered deliberately in analytics.
+Population correction to earlier review: Silver explicitly filters sex = 'Both'. Gold now also explicitly filters 'Both', protecting its year/location/age-group grain if future Silver rows include other sexes. No new sex dimension or invented counts were added. Silver excludes Total rows; analytics should sum non-overlapping age-group detail once per region-year.
 
 Service access is included because the supplied Gold models require it. Agency actuals is not a transformation in this folder and remains an optional Bronze source. No ingestion pipeline or missing monitoring tables are invented. Bronze must already exist.
 

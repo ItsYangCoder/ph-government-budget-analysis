@@ -43,7 +43,7 @@ Use `dbt build`, which runs models and tests in dependency order. `dbt test` alo
 - A custom script materialization that preserves SQL validations and MERGE logic rather than silently rewriting business rules.
 - Original files, migration decisions, pinned dependencies and offline verification notes.
 
-Read `MIGRATION.md` for inherited behavior and runtime limits. Rate and per-capita indicators are not additive; age-group totals overlap detail. Source dates, units, historical boundaries and marker interpretation still need domain review. dbt cannot infer publication status absent from Silver.
+Read `MIGRATION.md` for inherited behavior and runtime limits. Rate and per-capita indicators are not additive; the current population model excludes Total rows; sum non-overlapping age groups for a regional total. Source dates, units, historical boundaries and marker interpretation still need domain review. dbt cannot infer publication status absent from Silver.
 
 ## Acceptance
 

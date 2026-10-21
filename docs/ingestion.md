@@ -56,7 +56,7 @@ context; unsupported contexts raise an error.
 Additional settings remain available through CLI arguments, including
 `auth_mode`, `service_account_path`, replacement overrides, and resource limits.
 Secret authentication is the default. File authentication requires an explicitly
-selected file mode and the correct credentials path for the execution identity.
+selected file mode and an explicit absolute `--service_account_path` for the execution identity. The path has no default.
 Keep credential contents outside Git.
 
 ## Run the pipeline

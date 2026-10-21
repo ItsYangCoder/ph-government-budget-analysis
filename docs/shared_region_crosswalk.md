@@ -1,107 +1,49 @@
 # Shared Region Crosswalk
 
-Assigned to: Joy  
-Updated: 19 October 2026 (Asia/Manila)  
-Table: `pondolens.dev_silver.shared_region_crosswalk`  
-Setup SQL: `sql/silver/shared_region_crosswalk.sql`
+Assigned to: Christine Joy Balansay
+Updated: 21 October 2026 (Asia/Manila)
+Default table: `pondolens.dev_silver.shared_region_crosswalk`
+Model: [shared_region_crosswalk.sql](../dbt/models/silver/shared_region_crosswalk.sql)
 
 ## Purpose
 
-Map different source region labels to consistent project region codes and names. Silver transformations use this shared lookup so datasets can join using the same region convention.
+Map source region labels to the project’s standard codes and names. Silver models use this lookup before records reach Gold.
 
-One row represents **one source-region alias**. The join key is `UPPER(TRIM(source_region_name))` and must be unique. Multiple aliases may map to the same region_code.
+One row stores a source alias and its year range. Several aliases can point to the same region. Codes such as `IVA` and `IVB` are project codes, not PSGC identifiers.
 
 ## Data dictionary
 
-| Column | Type | Description |
+| Column | Type | Meaning |
 |---|---|---|
-| source_region_name | STRING | Source label or prepared matching label accepted by a Silver transformation. Required and unique after uppercase/trim normalization. |
-| region_code | STRING | Standard project region code, such as NCR, CAR, IVA, or IVB. Required; may repeat across aliases. |
-| region_name | STRING | Standard display name, such as National Capital Region or CALABARZON. Required. |
+| source_region | STRING | Source alias used for matching. |
+| region_code | STRING | Standard project code. It repeats across aliases. |
+| region_name | STRING | Standard display name. |
+| valid_from_year | INT | First valid year, inclusive. |
+| valid_to_year | INT | Last valid year, inclusive. |
+| source_code | STRING | Optional code from the source. |
+| geographic_level | STRING | Crosswalk level: `region`, `nationwide`, or `other`. Consuming models apply their own output conventions. |
 
-These short codes are project conventions, not official PSGC codes. The table has no surrogate ID or processing timestamp.
+## Loading and matching
 
-## Mapping coverage
+The dbt model creates the table when missing, then merges the approved aliases. The MERGE matches the exact stored `source_region`, updates mapped attributes, and inserts missing aliases. For matched aliases, it keeps the earliest start year and latest end year. It does not delete other existing aliases.
 
-| Mapping set | Contents | Setup status |
-|---|---|---|
-| Original hospital mappings | 31 aliases for 17 historical regions | Included in Joy's restored setup SQL. |
-| Completion rate additions | 18 aliases, including Philippines and NIR | Loaded separately through the completion rate alias MERGE. Not included in the restored 31-row SQL block. |
+Each Silver model prepares its source labels before matching. Depending on the dataset, it uses aliases, canonical names, codes, and year validity. Do not join directly to every crosswalk row by code: repeated aliases can multiply records. Resolve one distinct mapping for each source record and year.
 
-With both mapping sets and no other changes, the expected table contains **49 aliases**, covering **18 regions plus the national Philippines code PHL**. This is a combined expected state, not a row-count limit or a newly executed validation result.
+NIR’s seeded alias is valid for 2024–2025. Historical exceptions belong in the affected dataset’s documented rules; do not extend shared validity just to make a load pass. `PHL` is national and `CO` is Central Office, not a region. Nationwide handling is dataset-specific.
 
-Examples:
+## Checks and maintenance
 
-| source_region_name | region_code | region_name |
-|---|---|---|
-| NCR - National Capital Region | NCR | National Capital Region |
-| NCR National Capital Region | NCR | National Capital Region |
-| Region IV-A CALABARZON | IVA | CALABARZON |
-| Region IV A CALABARZON | IVA | CALABARZON |
-| MIMAROPA Region | IVB | MIMAROPA |
+Run `dbt build --threads 1` to build dependencies and run tests. Crosswalk checks cover required fields, validity ranges, and conflicting mappings for the same normalized alias in overlapping years. A repeated alias is not automatically a conflict if it resolves to the same mapping.
 
-The separately loaded completion rate aliases include National Capital Region (NCR), Region IV-A, Negros Island Region (NIR), and PHILIPPINES.
+Review new aliases against the source before adding them. Check dependent datasets after a mapping change. Matching names does not resolve historical boundary differences or redistribute source values.
 
-## Setup and maintenance
+There is no fixed expected row count: it depends on the approved aliases and existing entries. Current values come from the model and the selected target table, not earlier profiling snapshots.
 
-1. Run the setup SQL before dependent Silver transformations.
-2. CREATE TABLE IF NOT EXISTS creates the table only when absent.
-3. The insert-only MERGE matches aliases using uppercase and trim normalization.
-4. Missing aliases are inserted. Existing aliases, codes, and names are retained; the script does not update or delete them.
-5. Rerunning the same mapping block does not add duplicates to an already valid table. Existing duplicates must be resolved separately.
-6. Add new aliases only after verifying their intended region. Correcting an existing mapping requires an explicit reviewed update; editing the VALUES block alone will not change a matched row.
+## Related files
 
-Do not rebuild the shared table with CREATE OR REPLACE using only one dataset's mapping set: that can remove aliases needed by other transformations.
-
-For a fresh environment, run both mapping blocks before completion rate processing. The 31 hospital mappings alone are insufficient to reproduce the combined crosswalk.
-
-## How Silver uses the lookup
-
-Hospital matches the trimmed source region label directly, ignoring letter case.
-
-Completion rate first removes leading hierarchy dots and trailing numeric footnote references, then matches the prepared label. For example, `..Region IV-A 2/` becomes `Region IV-A`.
-
-```sql
-SELECT
-    h.region_name AS source_region,
-    x.region_code,
-    x.region_name
-FROM pondolens.dev_bronze.hospital AS h
-LEFT JOIN pondolens.dev_silver.shared_region_crosswalk AS x
-    ON UPPER(TRIM(h.region_name))
-        = UPPER(TRIM(x.source_region_name));
-```
-
-Dependent Silver loads should fail on unmatched locations rather than silently exclude source rows.
-
-## Validation
-
-Previous supplied results confirmed:
-
-- The original table contained 31 hospital aliases.
-- Duplicate normalized alias checking returned no rows.
-- The completion rate alias MERGE inserted 18 rows.
-- All 19 distinct completion rate locations mapped successfully, with no NULL region_code.
-
-The restored standalone 31-row script has not been independently rerun as part of this documentation task.
-
-Ongoing checks should confirm nonblank fields, unique normalized aliases, consistent names for each code, and complete mapping coverage for each dependent dataset. Do not test region_code as unique: aliases intentionally share codes.
-
-## Limitations
-
-- Alias mapping standardizes labels; it does not resolve historical regional boundary changes or redistribute counts between regions.
-- Hospital uses 17 historical source regions, while completion rate includes NIR and a national record. A successful name mapping does not guarantee comparable territories across years or datasets.
-- PHL is national, not a region; downstream models must distinguish it when aggregating.
-- Source footnote meanings require separate verification. Removing footnote markers for matching does not establish their meaning.
-- New datasets may introduce labels not covered by either existing mapping block.
-
-## Future dbt migration
-
-When dbt is configured, consolidate the complete approved mapping set into `dbt/seeds/shared_region_crosswalk.csv` and configure its destination as `pondolens.dev_silver.shared_region_crosswalk`. Retire the manual mapping load after migration so one authoritative mapping is maintained.
-
-## Related documentation
-
-- [Hospital Silver](docs/silver/hospital.md)
-- [Completion Rate Silver](docs/silver/completion_rate.md)
-
-Repository destination: `docs/silver/shared_region_crosswalk.md`. Consolidate older crosswalk documentation into this file after reviewing references.
+- [Silver column definitions and tests](../dbt/models/silver/schema.yml)
+- [Conflicting mapping test](../dbt/tests/crosswalk_conflicts.sql)
+- [Validity test](../dbt/tests/crosswalk_validity.sql)
+- [Hospital rules](silver/hospital.md)
+- [Completion rate rules](silver/completion_rate.md)
+- [Migration notes](../dbt/MIGRATION.md)
