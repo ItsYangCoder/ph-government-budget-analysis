@@ -3,7 +3,7 @@ PondoLens is an end-to-end data engineering capstone from the **FTW Foundation D
 
 The main reporting scope is **2021–2025**. Coverage varies by dataset.
 
-[Quick start](#quick-start) · [Documentation](#documentation) · [Silver guides](#silver-documentation) · [Dashboard](dashboard/PondoLens_Dashboard.md) · [Team](#team)
+[Why Databricks](#why-databricks) · [Data process](#how-the-data-moves) · [Quick start](#quick-start) · [Documentation](#documentation) · [Silver guides](#silver-documentation) · [Dashboard](dashboard/PondoLens_Dashboard.md) · [Team](#team)
 
 ## What we explore
 
@@ -13,13 +13,31 @@ The main reporting scope is **2021–2025**. Coverage varies by dataset.
 
 Allocation uses **appropriations**. Spending comparisons use **obligations**, which are recorded commitments rather than cash payments.
 
-## Pipeline
+## Why Databricks?
 
-Prepared source files in Google Drive → Python ingestion → Bronze → dbt Silver → Gold → dashboard.
+Databricks is the shared workspace where we load, clean, store, and analyze the project data using Python and SQL. We chose it so the team can work with the same tables and run the pipeline in one environment.
+
+For PondoLens, Delta Lake stores the tables and their change history, Unity Catalog organizes them under named schemas and controls access, and Databricks jobs run the ingestion and dbt tasks. SQL queries and dashboards turn the prepared data into charts.
 
 **Stack:** Python, SQL, Google Drive API, Databricks, Delta Lake, dbt, and GitHub Actions.
 
-Bronze retains source records and lineage. Silver standardizes values and geography. Gold provides **five dimensions and three facts**, connected by shared keys. See the [data model](docs/data_model.md).
+## How the data moves
+
+Data engineering turns source files into reliable tables that people can use for analysis. Our process is:
+
+| Step | What happens in PondoLens |
+|---|---|
+| **1. Collect and load** | Prepared source files are stored in Google Drive. Python uses the Google Drive API to load them into Databricks. |
+| **2. Bronze — retain the source** | Store source values and tracking details, including the file and ingestion run. This lets us trace records back to their input. |
+| **3. Silver — clean and check** | dbt runs SQL to standardize types, region names, units, and dataset-specific rules. Checks block invalid records from loading. |
+| **4. Gold — prepare for analysis** | dbt builds shared lookup tables (dimensions) and measurement tables (facts), connecting budgets, population, and indicators by year and location. |
+| **5. Query and display** | Analytics SQL calculates the reporting measures. Databricks dashboards display the results as charts and maps. |
+
+Python handles ingestion; dbt handles the Bronze-to-Silver-to-Gold transformations and data tests. Jobs run these tasks in order. GitHub stores the code and runs automated checks before changes are merged.
+
+Gold contains **five dimensions and three facts**. See the [data model](docs/data_model.md) for their relationships.
+
+## Data sources
 
 | Data | Source |
 |---|---|
