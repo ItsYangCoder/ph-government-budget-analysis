@@ -117,7 +117,8 @@ CREATE TABLE IF NOT EXISTS {{ this }} (
     category STRING NOT NULL
         COMMENT 'Standard agency or fund category',
     particular STRING NOT NULL
-        COMMENT 'Canonical agency or fund name, uppercase'
+        COMMENT 'Canonical agency or fund name, uppercase',
+    processed_at TIMESTAMP NOT NULL
 )
 USING DELTA
 COMMENT 'Fixed canonical particular registry for expenditure facts.'
@@ -194,12 +195,14 @@ ON t.particular_id = s.particular_id
 WHEN NOT MATCHED THEN INSERT (
     particular_id,
     category,
-    particular
+    particular,
+    processed_at
 )
 VALUES (
     s.particular_id,
     s.category,
-    s.particular
+    s.particular,
+    CURRENT_TIMESTAMP()
 )
 -- pondolens:statement --
 -- ============================================================
@@ -239,3 +242,5 @@ SELECT
     COUNT(*) AS retained_legacy_rows
 FROM {{ this }}
 WHERE particular_id = 30051
+-- pondolens:statement --
+SELECT ASSERT_TRUE(COUNT_IF(processed_at IS NULL) = 0, 'Missing dim_particular processed_at') FROM {{ this }}

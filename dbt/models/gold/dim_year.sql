@@ -35,7 +35,7 @@ SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty dim_year source') FROM dbt_dim_year_cand
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate dim_year source grain') FROM (SELECT year FROM dbt_dim_year_candidate GROUP BY year HAVING COUNT(*) > 1)
 -- pondolens:statement --
-CREATE TABLE IF NOT EXISTS {{ this }} USING DELTA AS SELECT * FROM dbt_dim_year_candidate WHERE 1 = 0
+CREATE TABLE IF NOT EXISTS {{ this }} USING DELTA AS SELECT *, CURRENT_TIMESTAMP() AS processed_at FROM dbt_dim_year_candidate WHERE 1 = 0
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT year_id) AND COUNT_IF(year_id IS NULL OR year_id < 20000) = 0, 'Invalid existing dim_year IDs') FROM {{ this }}
 -- pondolens:statement --
@@ -49,6 +49,8 @@ FROM matches m CROSS JOIN last_id
 SELECT ASSERT_TRUE(COUNT_IF(year_id IS NULL) = 0, 'dim_year ID allocation overflow') FROM dbt_dim_year_mapped
 -- pondolens:statement --
 MERGE INTO {{ this }} t USING dbt_dim_year_mapped s ON t.year <=> s.year
-WHEN NOT MATCHED THEN INSERT (year_id, year) VALUES (s.year_id, s.year)
+WHEN NOT MATCHED THEN INSERT (year_id, year, processed_at) VALUES (s.year_id, s.year, CURRENT_TIMESTAMP())
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'dim_year differs from prepared source') FROM (SELECT year FROM dbt_dim_year_candidate EXCEPT ALL SELECT year FROM {{ this }})
+-- pondolens:statement --
+SELECT ASSERT_TRUE(COUNT_IF(processed_at IS NULL) = 0, 'Missing dim_year processed_at') FROM {{ this }}
