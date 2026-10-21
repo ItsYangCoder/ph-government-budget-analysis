@@ -9,7 +9,7 @@
 -- Fact IDs: start at 60001; preserve existing IDs
 --
 -- OFFICE OF THE PRESS SECRETARY → PCO, particular_id 30033.
--- Legacy 30051 fact rows are removed only after validation.
+-- Retired 30051 rows require a separate migration before this model runs.
 --
 -- Run all statements in order, in one session.
 -- One writer only; keep Silver/dimensions unchanged during run.
@@ -411,38 +411,15 @@ FROM (
 ) duplicates
 -- pondolens:statement --
 -- ============================================================
--- 8. GUARDED LEGACY CLEANUP
--- No-op if 30051 fact rows have already been removed.
+-- 8. VALIDATE EXISTING CANONICAL KEYS
 -- ============================================================
 
--- RESULT 21
 SELECT ASSERT_TRUE(
-    COUNT(*) IN (0, 19)
-    AND COUNT_IF(
-        y.year IS NULL OR y.year <> 2023
-        OR s.particular_id IS NULL
-        OR NOT (
-            t.appropriation_amount <=> s.appropriation_amount
-        )
-        OR NOT (
-            t.appropriation_value_status
-            <=> s.appropriation_value_status
-        )
-        OR t.obligation_amount IS NOT NULL
-        OR NOT (
-            t.obligation_value_status <=> 'NOT_IN_SOURCE'
-        )
-    ) = 0,
-    'STOP: Legacy 30051 rows do not match the approved migration.'
+    COUNT(*) = 0,
+    'STOP: Retired particular 30051 requires a separate migration.'
 )
-FROM {{ this }} t
-LEFT JOIN {{ ref('dim_year') }} y
-    ON t.year_id = y.year_id
-LEFT JOIN fre_mapped s
-    ON t.year_id = s.year_id
-   AND t.location_id = s.location_id
-   AND s.particular_id = 30033
-WHERE t.particular_id = 30051
+FROM {{ this }}
+WHERE particular_id = 30051
 -- pondolens:statement --
 -- RESULT 22
 -- General source omissions are not automatically deleted.
@@ -456,32 +433,6 @@ LEFT ANTI JOIN fre_mapped s
    AND t.location_id = s.location_id
    AND t.particular_id = s.particular_id
 WHERE t.particular_id <> 30051
--- pondolens:statement --
--- RESULT 23
--- Preserve any remaining legacy rows before cleanup.
-CREATE TABLE IF NOT EXISTS
-{{ this.database }}.{{ this.schema }}.fact_expenditure_legacy_30051_backup
-USING DELTA
-AS
-SELECT *
-FROM {{ this }}
-WHERE particular_id = 30051
--- pondolens:statement --
--- RESULT 24
-SELECT ASSERT_TRUE(
-    COUNT(*) = 0,
-    'STOP: Legacy backup does not contain the rows being removed.'
-)
-FROM (
-    SELECT *
-    FROM {{ this }}
-    WHERE particular_id = 30051
-
-    EXCEPT ALL
-
-    SELECT *
-    FROM {{ this.database }}.{{ this.schema }}.fact_expenditure_legacy_30051_backup
-) differences
 -- pondolens:statement --
 -- ============================================================
 -- 9. ALLOCATE IDs ONLY FOR NEW CANONICAL KEYS
@@ -536,54 +487,19 @@ LEFT JOIN fre_new_ids n
    AND s.location_id = n.location_id
    AND s.particular_id = n.particular_id
 -- pondolens:statement --
--- RESULT 27
-CREATE OR REPLACE TEMP VIEW fre_merge_actions AS
-SELECT
-    regional_expenditure_id,
-    year_id,
-    location_id,
-    particular_id,
-    appropriation_amount,
-    appropriation_value_status,
-    obligation_amount,
-    obligation_value_status,
-    'UPSERT' AS action_type
-FROM fre_upsert
-
-UNION ALL
-
-SELECT
-    regional_expenditure_id,
-    year_id,
-    location_id,
-    particular_id,
-    appropriation_amount,
-    appropriation_value_status,
-    obligation_amount,
-    obligation_value_status,
-    'DELETE_LEGACY' AS action_type
-FROM {{ this }}
-WHERE particular_id = 30051
--- pondolens:statement --
 -- ============================================================
--- 10. SAVE CANONICAL RECORDS AND REMOVE VALIDATED LEGACY ROWS
--- Both actions happen in this single Delta MERGE.
+-- 10. UPSERT CANONICAL RECORDS
+-- Existing IDs are retained; source omissions are not deleted.
 -- ============================================================
 
 -- RESULT 28: MERGE METRICS
 MERGE INTO {{ this }} t
-USING fre_merge_actions s
+USING fre_upsert s
 ON  t.year_id = s.year_id
 AND t.location_id = s.location_id
 AND t.particular_id = s.particular_id
 
-WHEN MATCHED
- AND s.action_type = 'DELETE_LEGACY'
-THEN DELETE
-
-WHEN MATCHED
- AND s.action_type = 'UPSERT'
- AND (
+WHEN MATCHED AND (
        NOT (t.appropriation_amount <=> s.appropriation_amount)
     OR NOT (
         t.appropriation_value_status
@@ -603,7 +519,6 @@ THEN UPDATE SET
     t.processed_at = CURRENT_TIMESTAMP()
 
 WHEN NOT MATCHED
- AND s.action_type = 'UPSERT'
 THEN INSERT (
     regional_expenditure_id,
     year_id,
