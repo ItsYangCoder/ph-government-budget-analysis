@@ -1,11 +1,11 @@
 # PondoLens dbt — Bronze to Silver to Gold
 
-This project executes the transformations supplied in your folder, documents the tables and runs data tests. Bronze ingestion stays in the Python pipeline. Existing notebook SQL is archived under `legacy_sql/`; active dbt models are under `models/`.
+This project transforms existing Bronze records into Silver and Gold tables and runs data tests. Bronze ingestion stays in the Python pipeline. Existing notebook SQL is archived under `legacy_sql/`; active dbt models are under `models/`.
 
 ## Databricks first run
 
-1. Extract this folder into the repository's `dbt/` directory. Use a branch and keep your current tables intact.
-2. Create a Databricks dbt task, choose the SQL warehouse, and set the project directory to `dbt`. Use the Run As identity's authentication. The identity needs USE CATALOG, USE SCHEMA, SELECT on Bronze, and permission to create/modify tables in the target schemas. Pin `dbt-databricks==1.10.15`. Use one concurrent task/run and one dbt thread.
+1. Clone or pull the repository into Databricks and use its `dbt/` directory as the project.
+2. Create a Databricks dbt task, choose the SQL warehouse, and set the project directory to `dbt`. Use the Run As identity's authentication. The identity needs USE CATALOG, USE SCHEMA, SELECT on Bronze, and permission to create/modify tables in the target schemas. Local/CI dependencies are pinned in requirements-dbt.txt. The supplied connected builds used Core 1.12.5 and adapter 1.12.7; record the versions used by the managed task. See [validation notes](VALIDATION.md). Use one concurrent task/run and one dbt thread.
 3. Match the task profile to `pondolens`. `profiles.yml.example` is available for external CLI use; no secrets are included. Connection host/path and authentication are workspace-specific and must be selected in the task.
 4. Remove default seed/run commands. First use:
 

@@ -106,7 +106,7 @@ Before loading, a metadata check requires the target amount column to be DECIMAL
 
 Provisioning and MERGE are separate operations. Table creation can remain if a later statement fails. Run in order and stop on the first failed statement.
 
-The final SQL referenced by this document is the eight-column decimal version. The earlier branch version containing a BIGINT measure and processing_run_id is a different implementation and must be replaced before repository deployment.
+The active dbt model produces the eight-column decimal schema documented above. Original scripts are archived outside the active model directory.
 
 ## Validation gates
 
@@ -177,7 +177,7 @@ These results validate the reported target snapshot. They do not independently e
 6. Check target schema, IDs, natural keys, coverage, and stage-to-target reconciliation.
 7. Retain query outputs and Job execution evidence with the deployed revision.
 
-The SQL uses explicit pondolens.dev_* names. It is a multi-statement Databricks SQL script stored under the dbt directory, not a ready-to-run dbt SELECT model. The runtime must support the script's SQL functions and Delta MERGE; the execution identity needs input reads and target provisioning/write permissions.
+Run this model through dbt using the project's pondolens_script materialization. dbt resolves the Bronze source, crosswalk dependency, and target catalog/schema from configuration. The execution identity needs input reads and target provisioning/write permissions. See the [dbt guide](../../dbt/README.md).
 
 Before unattended scheduling, verify in an isolated schema that an unchanged rerun preserves IDs, row count, and timestamps; a corrected measure updates its existing ID; a new key inserts once; and invalid inputs block the merge. Record those results separately from the initial load.
 

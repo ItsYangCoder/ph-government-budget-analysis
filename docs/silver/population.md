@@ -4,13 +4,13 @@
 
 **Source:** `pondolens.dev_bronze.population` — PSA 2020 Census-Based Population Projections, Table 1.
 
-**Code notebook:** `razz_population_silver`
+**Model:** [population.sql](../../dbt/models/silver/population.sql)
 
 **Grain:** one row per region, year and age group, with sex = Both.
 
 **Scope:** 17 regions × 5 years (2021–2025) × 18 age groups = **1,530 rows**.
 
-**Documented by:** Razz
+**Documented by:** Razzelle Ann Boreros
 
 ## Silver process
 
@@ -62,8 +62,16 @@
 
 ## Execution and validation
 
-Run the full script in one SQL session after successful ingestion and crosswalk setup, with maximum concurrent runs set to 1. Stop on the first failed assertion. This multi-statement Databricks SQL script is not a dbt model.
+Run the full script in one SQL session after successful ingestion and crosswalk setup, with maximum concurrent runs set to 1. Stop on the first failed assertion. Run the active dbt model through the project's pondolens_script materialization; dbt resolves sources, dependencies, and configured target schemas.
 
 The load rejects negative population, noninteger or overflowing numbers, inconsistent age limits, empty in-scope stages, and duplicate target natural keys. Missing population is retained as NULL; the open-ended 85-and-over group requires age_min = 85 and age_max = NULL. Numeric parsing uses decimal precision before integer conversion.
 
 The 1,530-row result above is the contributor-reported baseline, not an execution performed by repository CI. Verify first load, unchanged rerun, correction, and new-key insertion in Databricks before scheduling. Additional records within 2021–2025 are supported; new years require extending the explicit filter. The 80% check is a coverage heuristic, not a completeness guarantee.
+
+## Related files
+
+- [Silver SQL](../../dbt/models/silver/population.sql)
+- [Silver definitions and tests](../../dbt/models/silver/schema.yml)
+- [Bronze findings](../../profiling/bronze/population/findings.md)
+- [Bronze data dictionary](../../profiling/bronze/population/data_dictionary.md)
+- [Pipeline recovery](../ingestion.md#pipeline-failures-and-recovery)

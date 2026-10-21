@@ -34,7 +34,7 @@ The profiled source contains **68 records covering 2021–2024 and 17 historical
 1. Trim year and hospital-count text. Keep the raw text in staging so invalid inputs can be detected before writing.
 2. Validate year as four digits and cast it to INT.
 3. Validate hospital count as digits only, cast it to INT, and require a nonnegative value. Decimal, signed, comma-formatted, blank, and nonnumeric text are rejected rather than silently rounded or removed.
-4. Match the trimmed source region to the shared crosswalk using uppercase and trim normalization. Copy region_code and region_name from the mapping.
+4. Normalize source and crosswalk names by removing punctuation and spaces and uppercasing. Match source aliases and canonical names within their validity years, including the explicit NCR source alias. Copy region_code and region_name from the mapping.
 5. Standardize known category labels to Government, Private, or Total. Other categories block the load.
 6. Lowercase and trim the unit; require hospitals.
 7. Preserve existing IDs for matched natural keys and allocate IDs to new keys.
@@ -45,7 +45,7 @@ The staging join is LEFT JOIN so unmatched source records remain visible to vali
 
 Before the data MERGE, the script checks:
 
-- Crosswalk aliases are unique after uppercase/trim normalization.
+- Each normalized alias and source year resolves to one distinct code/name pair; equivalent mappings are collapsed.
 - The source stage contains records.
 - Years and counts satisfy the accepted format and numeric range.
 - All regions have nonblank mapped codes and names.
@@ -75,22 +75,11 @@ The script reads the current Bronze table each run. It is an upsert over that in
 
 ID allocation requires a single writer. It is not a durable sequence: manual deletion of the highest IDs can allow reuse later. Retain records and IDs, or introduce a persistent key registry before requiring permanent historical identity across deletions.
 
-## Table creation and cleanup
+## Table creation
 
-The script creates the target when absent. Existing rows and matched IDs are retained.
+The active dbt model creates the target when absent. It does not drop provenance columns, enable column mapping, or migrate an existing ID type. Existing incompatible schemas require a separate reviewed migration.
 
-For the earlier table version, it enables Delta name-based column mapping and removes these columns when present:
-
-- source_agency
-- source_publication
-- source_table
-- source_page
-- source_url
-- coverage_note
-
-This removes the columns from the active Silver schema, not from Bronze. Old Delta versions and physical files may retain dropped values until normal retention procedures remove them. Column mapping can upgrade table protocol requirements; downstream readers must support it.
-
-Schema cleanup and the MERGE are separate operations. An error after cleanup does not roll back the earlier schema changes. The script does not automatically migrate other incompatible schema differences, including the existing hospital_id type.
+Run through dbt using the pondolens_script materialization. Sources, dependencies, and target schemas are resolved by dbt. Statements execute in order and stop on the first error; they are not one transaction.
 
 ## Recorded validation
 
@@ -112,7 +101,7 @@ The existing profiling and Hospital Silver documentation recorded these results 
 | 2023 | 17 | 445 |
 | 2024 | 17 | 456 |
 
-These are historical results, not execution evidence for the revised upsert and column-cleanup script. The revised script still requires validation of the final schema, preserved IDs, insert/update behavior, unchanged reruns, and failure handling before unattended scheduling.
+These counts describe the reported source snapshot. Project connected-build evidence is recorded in [validation notes](../../dbt/VALIDATION.md); build success alone does not establish unchanged IDs or timestamps.
 
 ## Job execution and acceptance checks
 
@@ -120,7 +109,7 @@ These are historical results, not execution evidence for the revised upsert and 
 2. Execute SQL in order and stop on the first error.
 3. Set Job maximum concurrent runs to 1. Avoid concurrent manual writes, overlapping ingestion, and crosswalk edits during the Silver load.
 4. For the unchanged current snapshot, reconcile target rows and yearly totals against the recorded baseline, provided the target contains no additional retained historical keys.
-5. Verify IDs and natural keys are unique and non-null; confirm only the eight documented output columns remain.
+5. Verify IDs and natural keys are unique and non-null; confirm the documented output columns and compatible types exist.
 6. Run again with unchanged input: row count, IDs, values, and processed_at should remain unchanged.
 7. In an isolated test schema, revise a count and add a new key. Verify that the changed record keeps its ID, the new key receives a new ID, and processing timestamps reflect the changes.
 8. Test invalid values, duplicate keys, and an unmapped region; confirm they block loading rather than dropping records silently.
@@ -144,4 +133,4 @@ The temporary staging view is evaluated against its underlying tables; the valid
 - [Bronze data dictionary](../../profiling/bronze/hospital/data_dictionary.md)
 - [Crosswalk documentation](../shared_region_crosswalk.md)
 
-Repository destination: `docs/silver/hospital.md`. Keep the revised executable SQL in the hospital Silver folder and update its repository reference if the notebook is replaced by a plain SQL file.
+Active model: [hospital.sql](../../dbt/models/silver/hospital.sql). Tests: [Silver schema](../../dbt/models/silver/schema.yml). Recovery: [ingestion guide](../ingestion.md#pipeline-failures-and-recovery).
