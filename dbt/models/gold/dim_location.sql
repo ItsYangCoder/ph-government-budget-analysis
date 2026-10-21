@@ -169,7 +169,7 @@ SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty dim_location source') FROM dbt_dim_locat
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'Duplicate dim_location source grain') FROM (SELECT location_code FROM dbt_dim_location_candidate GROUP BY location_code HAVING COUNT(*) > 1)
 -- pondolens:statement --
-CREATE TABLE IF NOT EXISTS {{ this }} USING DELTA AS SELECT * FROM dbt_dim_location_candidate WHERE 1 = 0
+CREATE TABLE IF NOT EXISTS {{ this }} USING DELTA AS SELECT *, CURRENT_TIMESTAMP() AS processed_at FROM dbt_dim_location_candidate WHERE 1 = 0
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = COUNT(DISTINCT location_id) AND COUNT_IF(location_id IS NULL OR location_id < 10001) = 0, 'Invalid existing dim_location IDs') FROM {{ this }}
 -- pondolens:statement --
@@ -183,7 +183,9 @@ FROM matches m CROSS JOIN last_id
 SELECT ASSERT_TRUE(COUNT_IF(location_id IS NULL) = 0, 'dim_location ID allocation overflow') FROM dbt_dim_location_mapped
 -- pondolens:statement --
 MERGE INTO {{ this }} t USING dbt_dim_location_mapped s ON t.location_code <=> s.location_code
-WHEN MATCHED AND (NOT (t.location <=> s.location) OR NOT (t.geographic_level <=> s.geographic_level) OR NOT (t.geometry_json <=> s.geometry_json) OR NOT (t.psgc <=> s.psgc)) THEN UPDATE SET t.location = s.location, t.geographic_level = s.geographic_level, t.geometry_json = s.geometry_json, t.psgc = s.psgc
-WHEN NOT MATCHED THEN INSERT (location_id, location_code, location, geographic_level, geometry_json, psgc) VALUES (s.location_id, s.location_code, s.location, s.geographic_level, s.geometry_json, s.psgc)
+WHEN MATCHED AND (NOT (t.location <=> s.location) OR NOT (t.geographic_level <=> s.geographic_level) OR NOT (t.geometry_json <=> s.geometry_json) OR NOT (t.psgc <=> s.psgc)) THEN UPDATE SET t.location = s.location, t.geographic_level = s.geographic_level, t.geometry_json = s.geometry_json, t.psgc = s.psgc, t.processed_at = CURRENT_TIMESTAMP()
+WHEN NOT MATCHED THEN INSERT (location_id, location_code, location, geographic_level, geometry_json, psgc, processed_at) VALUES (s.location_id, s.location_code, s.location, s.geographic_level, s.geometry_json, s.psgc, CURRENT_TIMESTAMP())
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) = 0, 'dim_location differs from prepared source') FROM (SELECT location_code, location, geographic_level, geometry_json, psgc FROM dbt_dim_location_candidate EXCEPT ALL SELECT location_code, location, geographic_level, geometry_json, psgc FROM {{ this }})
+-- pondolens:statement --
+SELECT ASSERT_TRUE(COUNT_IF(processed_at IS NULL) = 0, 'Missing dim_location processed_at') FROM {{ this }}
