@@ -2,132 +2,136 @@
 
 ### Philippine Government Budget Analysis
 
-PondoLens is a data engineering capstone that brings Philippine government budget data and regional indicators into a shared analytical workflow. It helps readers explore where public funds are allocated, where appropriation and obligation figures differ, and how regional spending compares with selected development indicators.
+PondoLens is an end-to-end data engineering capstone that brings Philippine government budget data and regional indicators into a shared analytical workflow. Python loads prepared source files from Google Drive into Databricks Bronze tables. dbt transforms those records into Silver tables and Gold dimensions and facts for analysis.
 
-The main analytical scope is **2021–2025**. Actual coverage varies by dataset; missing years and changes in regional coverage are documented rather than filled with assumed values.
+The main analytical scope is **2021–2025**. Coverage varies by dataset. Missing years, source markers, and changes in regional coverage are documented rather than replaced with assumed values.
 
 **Team:** Razz, Rhea, Anji, Mia, and Joy  
 **Program:** FTW Foundation — Batch 12, Data Engineering
 
-## Business questions
+## Analytical focus
 
-| Question | Focus |
-|---|---|
-| **Q1. Where does the money go across agencies and regions?** | Compare allocations across agencies, regions, and years. |
-| **Q2. Where do budget execution gaps appear?** | Compare regional appropriations and obligations at a compatible grain. |
-| **Q3. How does regional spending compare with development indicators?** | Examine spending alongside GRDP per capita, unemployment, and service access. |
+- Identify the **top five highest and lowest budget allocations** across agencies or regions for a selected year.
+- Compare regional spending with economic, employment, poverty, education, and health indicators where compatible data is available.
+- Use regional boundaries to display geographic patterns in a choropleth map.
 
-Completion rate and government hospital counts provide additional education and health context as their transformations and source definitions are validated.
-
-An appropriation–obligation difference does not, by itself, explain why a gap exists or establish misuse of funds. Indicator comparisons describe patterns and associations; they do not prove that spending caused an outcome.
+The repository also retains appropriation and obligation measures for compatible comparisons. Their presence does not mean every available measure is part of the final presentation. An appropriation–obligation difference alone does not explain its cause or establish misuse of funds. Indicator comparisons show associations, not proof that spending caused an outcome.
 
 ## Start here
 
 | Looking for… | Open |
 |---|---|
-| How ingestion works and how to run it | [Ingestion guide](docs/ingestion.md) |
-| Raw-data profiling and treatment proposals | [Profiling index and runbook](profiling/README.md) |
-| Completion rate findings | [Completion rate profiling](profiling/bronze/completion_rate/findings.md) |
-| Hospital findings | [Hospital profiling](profiling/bronze/hospital/findings.md) |
-| Completion rate Silver rules and dictionary | [Completion rate documentation](docs/silver/completion_rate.md) |
-| Hospital Silver rules and dictionary | [Hospital documentation](docs/silver/hospital.md) |
-| Region mapping | [Crosswalk documentation](docs/crosswalk.md) |
-| Executable transformation files | [Silver folder](dbt/models/02_silver/) |
+| Source ingestion, setup, and operational checks | [Ingestion guide](docs/ingestion.md) |
+| Dataset profiling, dictionaries, and findings | [Profiling index](profiling/README.md) |
+| dbt connection setup and execution commands | [dbt guide](dbt/README.md) |
+| Isolated-schema testing | [Test-first guide](dbt/TEST_FIRST.md) |
+| Model and column definitions, including data tests | [Silver schema](dbt/models/silver/schema.yml) · [Gold schema](dbt/models/gold/schema.yml) |
+| Region aliases and mapping rules | [Crosswalk documentation](docs/shared_region_crosswalk.md) |
+| SQL migration decisions and runtime safeguards | [Migration notes](dbt/MIGRATION.md) |
+| Recorded offline validation | [Validation notes](dbt/VALIDATION.md) |
 
 ## Pipeline overview
 
-Source reports are prepared as structured files before entering the ingestion workflow. This repository currently contains the Google Drive ingestion implementation, not the PDF/Excel extraction scripts used to prepare those files.
-
-| Stage | What happens | Location |
+| Stage | What happens | Implementation / default destination |
 |---|---|---|
-| **Source files** | Prepared CSV, Excel, Google Sheets, and GeoJSON inputs are read from Google Drive. | Configured Drive folder |
-| **Ingestion** | Python authenticates, discovers files, routes datasets, parses records, and validates the load plan. | `src/pondolens/ingestion/` |
-| **Bronze** | Original source values, landing files, and ingestion lineage are retained. | `pondolens.dev_bronze` |
-| **Profiling** | Dataset checks identify missing values, duplicates, coverage gaps, and proposed treatments. | `profiling/bronze/` |
-| **Silver** | SQL standardizes types, labels, region mappings, and dataset-specific rules. | `pondolens.dev_silver` |
-| **Gold and serving** | Dimensions, facts, and analytical queries support the business questions. Repository migration is still in progress. | Planned folders under `dbt/models/03_gold/`, `analytics/`, and `dashboard/` |
+| Source preparation | Source reports are prepared as structured files. PDF/Excel extraction scripts used for preparation are not included in this repository. | Google Drive source files |
+| Ingestion | Python discovers files, routes datasets, parses records, validates the load plan, and writes landing files and lineage. | `src/pondolens/` |
+| Bronze | Source values and ingestion metadata are retained. | `pondolens.dev_bronze` |
+| Profiling | SQL checks coverage, missing values, markers, duplicates, and proposed treatments. | `profiling/bronze/` |
+| Silver | dbt standardizes types, labels, geography, and dataset-specific rules. | `pondolens.dev_silver` |
+| Gold | dbt builds shared dimensions and facts at defined grains. | `pondolens.dev_gold` |
+| Analysis and display | Gold tables support analytical queries and dashboard visuals. | Workspace assets; repository folders currently contain placeholders |
 
-The project uses a medallion approach. Python ingestion logic is separated from the Databricks entry point, while current storage and transformations still depend on Databricks and Spark.
+Python ingestion and dbt transformations are separate tasks. **dbt requires Bronze data to exist first.** A new Databricks account also needs storage, authentication, permissions, and a configured connection; cloning this repository alone does not populate Bronze.
 
 ## Current repository status
 
-Status below reflects the files present in `dev` on **19 October 2026**. Workspace assets and repository implementation may differ during migration.
+As of **21 October 2026**:
 
-| Component | Status |
+| Component | Repository status |
 |---|---|
-| Modular Google Drive ingestion | Implemented; live load, unchanged rerun, and record comparison documented for 11 datasets. |
-| Bronze profiling | Present for several datasets; completion rate and hospital include dictionaries and findings. |
-| Bronze source YAML | Present for completion rate and hospital; definitions still need consolidation during dbt setup. |
-| Completion rate Silver | SQL and documentation committed; transformation-stage results recorded. Final migration and load behavior require execution verification. |
-| Hospital Silver | SQL notebook and documented validation results committed. Current creation query does not refresh an existing table. |
-| dbt execution | Not configured yet; no `dbt_project.yml` or connection profile is committed. Current Silver files are Databricks SQL scripts/notebooks, not runnable dbt models. |
-| Gold, DQ monitoring, analytics, and dashboard folders | Placeholders in the current repository; do not represent completed deployments. |
-| Orchestration | No Prefect or other orchestrator implementation is committed. Databricks Job task setup is described in the ingestion guide. |
-| CI | GitHub Actions checks Python syntax and notebook structure in configured scan folders. Offline unit tests are available separately. |
+| Google Drive ingestion | Modular Python implementation and Databricks runner are included. |
+| Bronze profiling | Eleven dataset packages contain profiling SQL, a data dictionary, and findings. |
+| dbt project | Configured project, source definitions, connection example, macros, selectors, and pinned dependencies are included. |
+| Silver | Eleven executable dbt models are included. |
+| Gold | Five dimension models and three fact models are included. |
+| Data quality | dbt schema tests, custom SQL tests, in-model assertions, and separate DQ queries are included. |
+| CI | Checks Python/notebooks, profiling packages, and the profiling SQL guard. It does not run connected dbt builds or all ingestion unit tests. |
+| Analytics and dashboard assets | `analytics/` and `dashboard/` currently contain placeholders; deployed workspace assets are not versioned there yet. |
+| Orchestration and monitoring | Databricks task setup is documented. No Prefect flow or central DQ results dashboard is implemented in this repository. |
 
-## Data sources and Bronze tables
+The code inventory is separate from release acceptance. [Validation notes](dbt/VALIDATION.md) record offline checks; connected run evidence must identify the tested commit, runtime versions, schema variables, and results. A successful run of an earlier commit does not validate later changes.
 
-Source families include **DBM budget reports**, **PSA/OpenSTAT indicators**, and **DOH hospital statistics reported through the source publication**. Exact file references, source labels, and coverage belong in the dataset documentation.
+## Datasets and models
 
-| Bronze table | Contents |
+Source families include DBM budget reports, PSA indicators, and hospital statistics from the source publication. Exact file references, units, and coverage are recorded in the [profiling packages](profiling/bronze/).
+
+| Bronze table | Silver model | Purpose |
+|---|---|---|
+| `regional_appropriation` | `regional_appropriations` | Regional appropriations from GAA files |
+| `regional_obligations` | `regional_obligations` | Regional obligation records |
+| `population` | `population` | Population projections by age group |
+| `unemployment_rate` | `unemployment_rate` | Regional unemployment rates |
+| `poverty_incidence` | `poverty_incidence` | Poverty incidence among families and population |
+| `grdp_per_capita` | `grdp_per_capita` | Current-price and constant-2018-price measures |
+| `completion_rate` | `completion_rate` | Completion percentages by education level and sex |
+| `hospital` | `hospital` | Government regulated hospital counts |
+| `region_boundaries` | `region_boundaries` | Geometry for choropleth maps |
+| `service_access` | `service_access` | Retained access indicators used by the current Gold model |
+| — | `shared_region_crosswalk` | Canonical region codes, names, aliases, and validity years |
+
+`agency_actuals` remains an ingestion dataset and an optional dbt source, disabled by default through `include_agency_actuals`. It has no active Silver/Gold transformation. Service access remains in the executable dbt graph; removing it from the presentation does not disable that dependency. CHED graduates, standalone GRDP, and sector expenditure are excluded from the current ingestion configuration.
+
+### Gold tables
+
+| Table | One row represents |
 |---|---|
-| `agency_actuals` | Agency actual expenditure records |
-| `regional_appropriation` | Regional appropriation records from GAA files |
-| `regional_obligations` | Regional obligation records |
-| `population` | Population projections |
-| `unemployment_rate` | Unemployment indicators |
-| `poverty_incidence` | Poverty incidence indicators |
-| `service_access` | Drinking water, electricity, and internet access indicators |
-| `grdp_per_capita` | GRDP per capita |
-| `completion_rate` | Completion percentages by location, education level, and sex |
-| `region_boundaries` | Regional geographic boundaries |
-| `hospital` | Regional government regulated hospital counts in the current snapshot |
+| `dim_year` | One reference year |
+| `dim_location` | One canonical location, with map geometry where available |
+| `dim_age_group` | One age-group definition |
+| `dim_particular` | One category and particular combination |
+| `dim_indicator` | One indicator definition and unit |
+| `fact_regional_expenditure` | One year × location × particular |
+| `fact_regional_indicator` | One year × location × indicator |
+| `fact_population` | One year × location × age group |
 
-CHED graduates, GRDP, and sector expenditure are excluded from the current ingestion scope. GRDP per capita remains included.
-
-Default landing volume: `/Volumes/pondolens/dev_bronze/government_budget`.
+Facts connect through shared dimension keys. Aggregate each fact to the required comparison grain before combining results; joining raw facts on year and location can multiply rows. Model columns and relationship tests are defined in [Gold schema YAML](dbt/models/gold/schema.yml).
 
 ## Repository guide
 
 | Path | Responsibility |
 |---|---|
-| `src/pondolens/ingestion/` | Drive access, dataset routing, parsing, validation, and pipeline coordination |
-| `src/pondolens/storage/` | Databricks runtime, landing-file writes, Delta writes, and ingestion logs |
-| `src/pondolens/common/` | Configuration, dependency bootstrap, and dataset fingerprints |
-| `platform/databricks/runners/` | Databricks ingestion entry point and widgets |
-| `dbt/models/01_bronze/` | Bronze source YAML definitions |
-| `dbt/models/02_silver/` | Current Silver SQL scripts and notebooks awaiting dbt migration |
-| `dbt/models/03_gold/` | Reserved for Gold dimensions and facts |
-| `dbt/models/04_monitoring/` | Reserved for monitoring models |
-| `profiling/bronze/` | Dataset profiling queries/notebooks, dictionaries, and findings |
-| `docs/` | Ingestion, crosswalk, and transformation documentation |
-| `data_quality/` | Reserved for reusable DQ rules and queries |
-| `analytics/` | Reserved for analytical queries |
-| `dashboard/` | Reserved for dashboard documentation and assets |
-| `tests/` | Offline unit tests and Databricks ingestion comparison script |
-| `scripts/check_code.py` | Python syntax and notebook validation |
-| `.github/workflows/ci.yml` | Automated repository code checks |
+| `src/pondolens/ingestion/` | Drive access, routing, parsing, validation, and pipeline coordination |
+| `src/pondolens/storage/` | Databricks storage, Delta writes, and ingestion logs |
+| `src/pondolens/common/` | Configuration, dependencies, and fingerprints |
+| `platform/databricks/runners/` | Databricks ingestion entry point |
+| `dbt/models/bronze/` | Bronze source definitions |
+| `dbt/models/silver/` | Silver transformations and schema documentation/tests |
+| `dbt/models/gold/` | Gold dimensions, facts, and schema documentation/tests |
+| `dbt/macros/` | Script materialization, schema routing, and reusable tests |
+| `dbt/tests/` | Dataset and cross-model SQL checks |
+| `dbt/verification/` | Offline materialization control-flow tests |
+| `dbt/legacy_sql/` | Archived original scripts; outside active dbt model paths |
+| `profiling/bronze/` | Profiling SQL, dictionaries, and findings |
+| `docs/` | Ingestion, crosswalk, and selected Silver documentation |
+| `data_quality/` | Additional DQ queries and notebooks |
+| `analytics/`, `dashboard/` | Placeholders for analytical queries and dashboard assets |
+| `tests/` | Ingestion unit tests and connected comparison script |
+| `.github/workflows/ci.yml` | Automated repository checks |
 
 ## Run Bronze ingestion
 
-### Requirements
+Requirements: a Databricks checkout, Spark compute with Unity Catalog, storage permissions, a Google service account with source access, and its credentials stored in Databricks secrets. See the [ingestion guide](docs/ingestion.md) for exact parameters and setup.
 
-- A checkout of this repository inside Databricks, including `src/pondolens/`.
-- Spark compute with Unity Catalog and managed storage configured.
-- Permission to use and, when absent, create the target catalog, schema, volume, and tables.
-- A Google service account with read access to the source folder.
-- A Databricks secret containing the service-account JSON.
-- Package installation access, or dependencies provisioned in the task environment.
+1. Open [the ingestion runner](platform/databricks/runners/run_ingestion.py).
+2. Review `catalog`, `schema`, `volume`, `drive_folder_id`, `secret_scope`, `secret_key`, `dataset`, `dry_run`, and `sheet_overrides_json`.
+3. Start with `dataset=all` and `dry_run=true`; review the validated file plan.
+4. Set `dry_run=false` to load the selected target.
+5. Review the ingestion log for success, skipped datasets, or failures.
 
-### Interactive run
+Dry runs do not create target storage or write data. Load runs create missing storage objects after preflight validation. Unchanged fingerprints and matching row counts produce skipped results.
 
-1. Open [`platform/databricks/runners/run_ingestion.py`](platform/databricks/runners/run_ingestion.py) from the repository checkout.
-2. Review the nine widgets: `catalog`, `schema`, `volume`, `drive_folder_id`, `secret_scope`, `secret_key`, `dataset`, `dry_run`, and `sheet_overrides_json`.
-3. Start with `dataset=all` and `dry_run=true`. Review the validated file plan and any errors.
-4. Confirm the target, then set `dry_run=false` and rerun to load.
-5. Review the ingestion log for `SUCCESS`, `SKIPPED`, or failure details.
-
-A dry run does not create storage objects or write target data. Load runs create missing catalog/schema/volume objects after preflight validation. Unchanged dataset fingerprints and matching row counts produce `SKIPPED` results.
+Default landing volume: `/Volumes/pondolens/dev_bronze/government_budget`.
 
 ```sql
 SELECT *
@@ -135,68 +139,75 @@ FROM pondolens.dev_bronze.gdrive_ingestion_log
 ORDER BY finished_at DESC;
 ```
 
-For Job arguments, limits, safeguards, and recorded validation, see the [ingestion guide](docs/ingestion.md). Configure maximum concurrent runs as **1**.
+## Run dbt: Bronze to Silver to Gold
 
-## Run Silver transformations
+Configure a Databricks dbt task with project directory `dbt`, profile `pondolens`, a SQL warehouse, and the Run As identity's permissions. Use **one concurrent run and one dbt thread**. For external CLI execution, use [profiles.yml.example](dbt/profiles.yml.example) without committing credentials.
 
-The shared crosswalk must be populated before either current Silver transformation runs.
+The dependency pins are in [requirements-dbt.txt](dbt/requirements-dbt.txt). Record the actual Core/adapter versions used in Databricks; a managed task may use a different version from those pins.
 
-| Dataset | Executable file | Notes |
-|---|---|---|
-| Completion rate | [completion_rate.sql](dbt/models/02_silver/completion_rate/completion_rate.sql) | Run statements in order in a Databricks SQL notebook/session and stop on the first error. Supports updates, inserts, and scoped snapshot deletions. |
-| Hospital | [Silver notebook](dbt/models/02_silver/hospital/silver_hospital.sql.dbquery.ipynb) | Current SQL uses CREATE TABLE IF NOT EXISTS; rerunning it does not refresh an existing table. |
+Start with isolated Silver/Gold destinations:
 
-Completion rate uses IDs starting at 8,000,001 and retains missing observations. Run it only after a complete Bronze snapshot with one target writer: an incomplete source can trigger deletions. MAX-based ID allocation can reuse deleted highest IDs. See the [dataset documentation](docs/silver/completion_rate.md) for the complete behavior and verification status.
+```sh
+dbt parse
+dbt build --threads 1 --vars '{"silver_schema":"dbt_test_silver","gold_schema":"dbt_test_gold"}'
+```
 
-These files currently run in Databricks. Do not use `dbt run` until the dbt project is configured and the scripts are converted into dbt models.
+These commands run from the dbt project directory. They read existing Bronze tables and write the selected Silver/Gold schemas. Repeat the build with unchanged inputs and compare IDs, row counts, and write metrics.
 
-## Local development and checks
+After acceptance, the development destinations use:
 
-Use Python **3.12** to match the current CI environment. From the repository root:
+```sh
+dbt build --threads 1
+dbt docs generate
+```
 
-```bash
+Default variables are `pondolens_catalog=pondolens`, `bronze_schema=dev_bronze`, `silver_schema=dev_silver`, and `gold_schema=dev_gold`. Git branch names do not change database destinations; use explicit variables for another environment.
+
+`dbt build` runs models and tests in dependency order. `dbt test` checks existing tables without rebuilding them. Active models use a custom script materialization to execute SQL statements and assertions in order; this is documented in [MIGRATION.md](dbt/MIGRATION.md).
+
+Keep Bronze stable during a build and avoid simultaneous notebook writers. Full refresh is blocked. Statements are not one transaction, so earlier writes may remain if a later check fails. The expenditure model no longer creates or reads the legacy backup table; retired particular `30051` rows require a separate migration before its MERGE can proceed.
+
+## Local checks
+
+Use Python **3.12** to match CI. From the repository root:
+
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
 python -m pip install 'nbformat>=5.10,<6'
-
+python -m pip install -r profiling/requirements-checks.txt
 python scripts/check_code.py
+python scripts/check_profiling.py
 python -m pytest -q tests/unit
 ```
 
-Offline tests use mocks and do not require live Drive or Spark connections. They verify ingestion behavior; they do not execute the Silver SQL against Databricks. The notebook checker scans configured folders and is not a full SQL validator.
+For dbt dependencies and offline materialization checks:
 
-[`tests/integration/validate_ingestion.py`](tests/integration/validate_ingestion.py) compares original and refactored tables in Databricks. Review its configured schemas before running it.
+```sh
+python -m pip install -r dbt/requirements-dbt.txt
+python -m pytest -q dbt/verification
+```
 
-Installing the Python package on a laptop does not create a remote Spark session. A local storage backend is not implemented.
+Offline checks do not execute transformations against Databricks. The [ingestion comparison script](tests/integration/validate_ingestion.py) requires a connected workspace; review its target schemas first. A local storage backend is not implemented.
 
-## Data quality and known limitations
+## Data quality and limitations
 
-- Completion rate has numeric observations for 2021–2024, with NIR missing in 2021–2023. The 2025 source column contains only missing markers in the profiled snapshot.
-- Hospital data covers 2021–2024, Government hospitals only, and 17 historical source regions. NIR is not separately listed.
-- Region aliases standardize labels; they do not resolve differences in historical boundaries.
-- Completion percentages must not be summed or combined across aggregate and sex-specific categories.
-- Hospital counts do not measure beds, staffing, capacity, or quality of care.
-- Successful ingestion and zero rescued rows do not establish business correctness. Dataset-level checks remain necessary.
-- Central DQ result tables and a DQ dashboard are planned, not implemented by the current placeholder folders.
+- Completion rate has numeric observations for 2021–2024; the profiled 2025 column contains only missing markers. NIR is missing in 2021–2023.
+- Hospital coverage is Government hospitals only, 2021–2024, across 17 source regions. It does not separately report NIR or measure beds, staffing, or care quality.
+- Canonical aliases do not make historical regional boundaries comparable. Keep dataset-specific historical exceptions separate from shared crosswalk validity.
+- Percentages and per-capita measures are not additive. Do not sum rates or average regional rates without appropriate denominators.
+- Population totals overlap age-group detail. Select the intended age group before aggregation.
+- Missing values and source markers must not be interpreted as zero. Preserve status and reliability information when displaying indicators.
+- A current boundary snapshot supports mapping but does not establish historical boundary consistency.
+- Zero rescued rows and successful tests do not establish source accuracy or causal relationships.
 
-## Team workflow
+## Team workflow and release
 
 1. Start a task branch from the latest `dev`.
-2. Keep code and dataset documentation together in the change.
-3. Run relevant checks and record Databricks validation results.
-4. Open a pull request targeting `dev` and review conflicts before merging.
-5. Delete a task branch after confirming its work is merged. Preserve branches with unmerged team work.
+2. Keep code, documentation, and relevant validation evidence together.
+3. Open a PR to `dev` and review checks and conflicts before merging.
+4. Before promoting `dev` to `main`, validate the latest commit, record connected build/rerun results, and confirm the intended runtime configuration.
+5. Treat a Git merge and a Databricks deployment as separate actions. Pulling code does not run ingestion or dbt.
 
-For new Bronze profiling work, use `profiling.sql`, `data_dictionary.md`, and `findings.md` under the dataset folder. All registered profiling packages use this convention; see [the profiling index](profiling/README.md). Silver documentation belongs in `docs/silver/<dataset>.md`.
-
-Keep tokens, passwords, and service-account keys outside Git. Use Databricks secrets for runtime credentials.
-
-## Next milestones
-
-- Verify the final completion rate load, ID assignment, repeat runs, and controlled source changes.
-- Consolidate and version the shared region crosswalk, including required completion rate aliases.
-- Make hospital loading refreshable and validate its failure handling.
-- Configure dbt and migrate validated transformations into models with descriptions and tests.
-- Bring the remaining Silver and Gold transformations into the repository.
-- Implement DQ monitoring, analytical queries, dashboard documentation, and orchestration.
+Keep credentials outside Git. Use Databricks secrets or the configured task identity. Delete task branches only after confirming that their work is merged.
