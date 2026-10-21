@@ -7,7 +7,7 @@ WITH base AS (
   SELECT grdp_per_capita_id, UPPER(TRIM(region_code)) AS region_code,
          UPPER(TRIM(region_name)) AS region_name, year,
          grdp_per_capita, price_basis, LOWER(TRIM(geographic_level)) AS geographic_level,
-         processing_run_id, processed_at
+         processed_at
   FROM pondolens.dev_silver.grdp_per_capita
 ),
 canonical AS (

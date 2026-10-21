@@ -38,7 +38,7 @@ These comparisons show patterns; they do not prove that spending caused an econo
 | Isolated-schema testing | [Test-first guide](dbt/TEST_FIRST.md) |
 | Silver transformation documentation | [Completion rate](docs/silver/completion_rate.md) · [GRDP per capita](docs/silver/grdp_per_capita.md) · [Hospital](docs/silver/hospital.md) · [Population](docs/silver/population.md) · [Regional appropriations](docs/silver/regional_appropriations.md) |
 | Current model and column definitions, including data tests | [Silver definitions and tests (YAML)](dbt/models/silver/schema.yml) · [Gold definitions and tests (YAML)](dbt/models/gold/schema.yml) |
-| Current crosswalk mapping and validity logic | [Crosswalk model (SQL)](dbt/models/silver/shared_region_crosswalk.sql) · [Column definitions (YAML)](dbt/models/silver/schema.yml) |
+| Current crosswalk mapping and validity logic | [Crosswalk guide](docs/shared_region_crosswalk.md) · [Crosswalk model (SQL)](dbt/models/silver/shared_region_crosswalk.sql) |
 | SQL migration decisions and runtime safeguards | [Migration notes](dbt/MIGRATION.md) |
 | Recorded offline validation | [Validation notes](dbt/VALIDATION.md) |
 
@@ -52,7 +52,7 @@ These comparisons show patterns; they do not prove that spending caused an econo
 | Profiling | SQL checks coverage, missing values, markers, duplicates, and proposed treatments. | `profiling/bronze/` |
 | Silver | dbt standardizes types, labels, geography, and dataset-specific rules. | `pondolens.dev_silver` |
 | Gold | dbt builds shared dimensions and facts at defined grains. | `pondolens.dev_gold` |
-| Analysis and display | Gold tables support analytical queries and dashboard visuals. | Workspace assets; repository folders currently contain placeholders |
+| Analysis and display | Gold tables support analytical queries and dashboard visuals. | [Analytics SQL](analytics/readme.md) and [dashboard export](dashboard/readme.md) |
 
 Python ingestion and dbt transformations are separate tasks. **dbt requires Bronze data to exist first.** A new Databricks account also needs storage, authentication, permissions, and a configured connection; cloning this repository alone does not populate Bronze.
 
@@ -69,7 +69,7 @@ As of **21 October 2026**:
 | Gold | Five dimension models and three fact models are included. |
 | Data quality | dbt schema tests, custom SQL tests, in-model assertions, and separate DQ queries are included. |
 | CI | Checks Python/notebooks, profiling packages, all ingestion unit tests, dbt materialization tests, and offline dbt parse/compile. Connected dbt builds run separately in Databricks. |
-| Analytics and dashboard assets | `analytics/` and `dashboard/` currently contain placeholders; deployed workspace assets are not versioned there yet. |
+| Analytics and dashboard assets | SQL queries and a Databricks dashboard export are included. View setup limits are listed in the analytics guide. |
 | Orchestration and monitoring | Databricks task setup is documented. No Prefect flow or central DQ results dashboard is implemented in this repository. |
 
 The code inventory is separate from release acceptance. [Validation notes](dbt/VALIDATION.md) record offline checks; connected run evidence must identify the tested commit, runtime versions, schema variables, and results. A successful run of an earlier commit does not validate later changes.
@@ -127,7 +127,7 @@ Facts connect through shared dimension keys. Aggregate each fact to the required
 | `profiling/bronze/` | Profiling SQL, dictionaries, and findings |
 | `docs/` | Ingestion, crosswalk, and selected Silver documentation |
 | `data_quality/` | Additional DQ queries and notebooks |
-| `analytics/`, `dashboard/` | Placeholders for analytical queries and dashboard assets |
+| `analytics/`, `dashboard/` | Analytical queries, dashboard export, and setup guides |
 | `tests/` | Ingestion unit tests and connected comparison script |
 | `.github/workflows/ci.yml` | Automated repository checks |
 
@@ -209,7 +209,7 @@ Offline checks do not execute transformations against Databricks. The [ingestion
 - Hospital coverage is Government hospitals only, 2021–2024, across 17 source regions. It does not separately report NIR or measure beds, staffing, or care quality.
 - Canonical aliases do not make historical regional boundaries comparable. Keep dataset-specific historical exceptions separate from shared crosswalk validity.
 - Percentages and per-capita measures are not additive. Do not sum rates or average regional rates without appropriate denominators.
-- Population totals overlap age-group detail. Select the intended age group before aggregation.
+- Current Silver population keeps Both-sex age-group detail and excludes Total rows. Sum the non-overlapping age groups once per region-year.
 - Missing values and source markers must not be interpreted as zero. Preserve status and reliability information when displaying indicators.
 - A current boundary snapshot supports mapping but does not establish historical boundary consistency.
 - Zero rescued rows and successful tests do not establish source accuracy or causal relationships.
