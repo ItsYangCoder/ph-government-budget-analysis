@@ -49,6 +49,8 @@ More datasets, source references, and coverage: [profiling index](profiling/READ
 
 ## Quick start
 
+You can explore this project using **Databricks Free Edition**, a free account for learning and personal projects, subject to usage limits. [Create a free account](https://login.databricks.com/?dbx_source=docs&intent=CE_SIGN_UP) or [log in to Databricks](https://login.databricks.com/), then follow the setup below. See the [official Free Edition guide](https://docs.databricks.com/aws/en/getting-started/free-edition) for details.
+
 1. Configure Databricks storage, permissions, and Google Drive credentials using the [ingestion guide](docs/ingestion.md).
 2. Run the [ingestion runner](platform/databricks/runners/run_ingestion.py) with `dry_run=true`, review the plan, then load Bronze with `dry_run=false`.
 3. Configure the [Databricks dbt task](dbt/README.md#databricks-first-run). Bronze must exist before dbt runs.
