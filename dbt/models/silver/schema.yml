@@ -1,0 +1,573 @@
+version: 2
+models:
+- name: completion_rate
+  description: "Existing silver table. Grain: year \xD7 region_code \xD7 indicator \xD7 level_of_education \xD7 sex."
+  columns:
+  - name: completion_rate_id
+    description: Completion rate id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: geographic_level
+    description: Geographic level.
+    data_tests:
+    - not_null
+  - name: indicator
+    description: Indicator.
+    data_tests:
+    - not_null
+  - name: level_of_education
+    description: Level of education.
+    data_tests:
+    - not_null
+  - name: sex
+    description: Sex.
+    data_tests:
+    - not_null
+  - name: completion_rate
+    description: Completion rate.
+  - name: unit
+    description: Unit.
+    data_tests:
+    - not_null
+  - name: raw_value
+    description: Original source value or marker retained for traceability.
+  - name: value_status
+    description: Status recorded by the transformation; check it before using the numeric value.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+        - indicator
+        - level_of_education
+        - sex
+- name: grdp_per_capita
+  description: "Existing silver table. Grain: year \xD7 region_code \xD7 price_basis \xD7 geographic_level."
+  columns:
+  - name: grdp_per_capita_id
+    description: Grdp per capita id.
+    data_tests:
+    - not_null
+    - unique
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: grdp_per_capita
+    description: Grdp per capita.
+    data_tests:
+    - not_null
+  - name: price_basis
+    description: 2018 means constant 2018 prices; the observation year means current prices.
+    data_tests:
+    - not_null
+  - name: geographic_level
+    description: Geographic level.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+        - price_basis
+        - geographic_level
+- name: hospital
+  description: "Existing silver table. Grain: year \xD7 region_code \xD7 hospital_type."
+  columns:
+  - name: hospital_id
+    description: Hospital id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: hospital_type
+    description: Hospital type.
+    data_tests:
+    - not_null
+  - name: regulated_hospital_count
+    description: Regulated hospital count.
+    data_tests:
+    - not_null
+  - name: unit
+    description: Unit.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+        - hospital_type
+- name: population
+  description: "Existing silver table. Grain: year \xD7 region_code \xD7 age_group \xD7 sex."
+  columns:
+  - name: population_id
+    description: Population id.
+    data_tests:
+    - not_null
+    - unique
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: age_group
+    description: Age group.
+    data_tests:
+    - not_null
+  - name: age_min
+    description: Lower age bound; NULL may mean an all-ages group.
+  - name: age_max
+    description: Upper age bound; NULL may mean an open-ended or all-ages group.
+  - name: sex
+    description: Sex.
+    data_tests:
+    - not_null
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: population
+    description: Population.
+    data_tests:
+    - not_null
+  - name: _processed_at
+    description: Timestamp recorded by the transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+        - age_group
+        - sex
+- name: poverty_incidence
+  description: "Existing silver table. Grain: year \xD7 region_code \xD7 indicator."
+  columns:
+  - name: poverty_incidence_id
+    description: Poverty incidence id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: indicator
+    description: Indicator.
+    data_tests:
+    - not_null
+  - name: poverty_threshold_php
+    description: Poverty threshold php.
+  - name: poverty_incidence_pct
+    description: Poverty incidence pct.
+  - name: estimate_marker
+    description: Source estimate marker, including c/ when supplied.
+  - name: display_value
+    description: Display value.
+  - name: coefficient_of_variation
+    description: Source coefficient of variation; dash markers can produce a numeric NULL.
+  - name: standard_error
+    description: Standard error.
+  - name: ci_lower_pct
+    description: Ci lower pct.
+  - name: ci_upper_pct
+    description: Ci upper pct.
+  - name: unit
+    description: Unit.
+    data_tests:
+    - not_null
+  - name: value_status
+    description: Status recorded by the transformation; check it before using the numeric value.
+    data_tests:
+    - not_null
+  - name: reliability_note
+    description: Reliability note.
+  - name: sig_change_2021_2023
+    description: Sig change 2021 2023.
+    data_tests:
+    - not_null
+  - name: sig_change_2023_2025
+    description: Sig change 2023 2025.
+    data_tests:
+    - not_null
+  - name: revised_sulu_transfer
+    description: Revised sulu transfer.
+    data_tests:
+    - not_null
+  - name: revised_north_cotabato_transfer
+    description: Revised north cotabato transfer.
+    data_tests:
+    - not_null
+  - name: region_mapping_source
+    description: Region mapping source.
+    data_tests:
+    - not_null
+  - name: notes
+    description: Notes.
+  - name: source_page
+    description: Source page.
+  - name: source_row
+    description: Source row.
+  - name: _processed_at
+    description: Timestamp recorded by the transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+        - indicator
+- name: region_boundaries
+  description: 'Existing silver table. Grain: region_code.'
+  columns:
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+    - unique
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: adm1_psgc
+    description: Source identifier retained as text; official code/version verification is pending.
+    data_tests:
+    - not_null
+  - name: geometry_type
+    description: Geometry type.
+    data_tests:
+    - not_null
+  - name: geometry_json
+    description: Serialized GeoJSON geometry used to draw choropleth regions; keep Polygon and MultiPolygon structure.
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - region_code
+- name: regional_appropriations
+  description: "Existing silver table. Grain: year \xD7 category \xD7 particular \xD7 region_code."
+  columns:
+  - name: gaa_id
+    description: Gaa id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: category
+    description: Category.
+    data_tests:
+    - not_null
+  - name: particular
+    description: Particular.
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: appropriation_amount
+    description: Appropriation amount retained by the existing transformation; confirm a common currency scale before comparisons.
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - category
+        - particular
+        - region_code
+- name: regional_obligations
+  description: "Existing silver table. Grain: year \xD7 category \xD7 particular \xD7 region_code."
+  columns:
+  - name: obligation_id
+    description: Obligation id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: category
+    description: Category.
+    data_tests:
+    - not_null
+  - name: particular
+    description: Particular.
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: location_type
+    description: Location type.
+    data_tests:
+    - not_null
+  - name: expenditure_amount
+    description: Obligation amount normalized by the existing Silver SQL; verify unit conventions before combining budget
+      datasets.
+  - name: value_status
+    description: Status recorded by the transformation; check it before using the numeric value.
+    data_tests:
+    - not_null
+  - name: particular_as_stored
+    description: Particular as stored.
+    data_tests:
+    - not_null
+  - name: source_name
+    description: Source name.
+    data_tests:
+    - not_null
+  - name: source_page
+    description: Source page.
+  - name: processing_run_id
+    description: Processing run id.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - category
+        - particular
+        - region_code
+- name: unemployment_rate
+  description: "Existing silver table. Grain: year \xD7 region_code."
+  columns:
+  - name: unemployment_rate_id
+    description: Unemployment rate id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: unemployment_rate
+    description: Unemployment rate.
+    data_tests:
+    - not_null
+  - name: run_id
+    description: Run id.
+    data_tests:
+    - not_null
+  - name: source
+    description: Source.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - region_code
+- name: shared_region_crosswalk
+  description: 'Existing silver table. Grain: source alias and validity window; equivalent mappings may repeat.'
+  columns:
+  - name: source_region
+    description: Source alias. Repeated aliases can be valid across validity windows or equivalent mappings.
+    data_tests:
+    - not_null
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null
+  - name: valid_from_year
+    description: First year covered by this mapping, inclusive.
+    data_tests:
+    - not_null
+  - name: valid_to_year
+    description: Last year covered by this mapping, inclusive.
+    data_tests:
+    - not_null
+  - name: source_code
+    description: Source code.
+  - name: geographic_level
+    description: Geographic level.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+- name: service_access
+  description: "Existing silver table. Grain: year \xD7 service_measure \xD7 region_code \xD7 breakdown_type \xD7 breakdown_value."
+  columns:
+  - name: service_access_id
+    description: Service access id.
+    data_tests:
+    - not_null:
+        config: {}
+    - unique:
+        config: {}
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: service
+    description: Service.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: service_measure
+    description: Service measure.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: region_name
+    description: Canonical location name.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: region_code
+    description: Canonical project location code from the shared crosswalk; this is not a PSGC code.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: breakdown_type
+    description: Breakdown type.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: breakdown_value
+    description: Breakdown value.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: value
+    description: Value.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: unit
+    description: Unit.
+    data_tests:
+    - not_null:
+        config: {}
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null:
+        config: {}
+  data_tests:
+  - nonempty:
+      config: {}
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+        - service_measure
+        - region_code
+        - breakdown_type
+        - breakdown_value
+      config: {}

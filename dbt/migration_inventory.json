@@ -1,0 +1,166 @@
+{
+  "poverty_incidence": {
+    "layer": "dbt_test_silver",
+    "statements": 23,
+    "dependencies": [
+      "source.pondolens.bronze.poverty_incidence",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "regional_obligations": {
+    "layer": "dbt_test_silver",
+    "statements": 32,
+    "dependencies": [
+      "source.pondolens.bronze.regional_obligations",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "population": {
+    "layer": "dbt_test_silver",
+    "statements": 19,
+    "dependencies": [
+      "source.pondolens.bronze.population",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "completion_rate": {
+    "layer": "dbt_test_silver",
+    "statements": 21,
+    "dependencies": [
+      "source.pondolens.bronze.completion_rate",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "unemployment_rate": {
+    "layer": "dbt_test_silver",
+    "statements": 14,
+    "dependencies": [
+      "source.pondolens.bronze.unemployment_rate",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "hospital": {
+    "layer": "dbt_test_silver",
+    "statements": 16,
+    "dependencies": [
+      "source.pondolens.bronze.hospital",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "grdp_per_capita": {
+    "layer": "dbt_test_silver",
+    "statements": 23,
+    "dependencies": [
+      "source.pondolens.bronze.grdp_per_capita",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "service_access": {
+    "layer": "dbt_test_silver",
+    "statements": 22,
+    "dependencies": [
+      "source.pondolens.bronze.service_access",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "regional_appropriations": {
+    "layer": "dbt_test_silver",
+    "statements": 18,
+    "dependencies": [
+      "source.pondolens.bronze.regional_appropriations",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "shared_region_crosswalk": {
+    "layer": "dbt_test_silver",
+    "statements": 6,
+    "dependencies": []
+  },
+  "region_boundaries": {
+    "layer": "dbt_test_silver",
+    "statements": 14,
+    "dependencies": [
+      "source.pondolens.bronze.region_boundaries",
+      "model.pondolens.shared_region_crosswalk"
+    ]
+  },
+  "fact_population": {
+    "layer": "dbt_test_gold",
+    "statements": 10,
+    "dependencies": [
+      "model.pondolens.population",
+      "model.pondolens.dim_year",
+      "model.pondolens.dim_location",
+      "model.pondolens.dim_age_group"
+    ]
+  },
+  "dim_year": {
+    "layer": "dbt_test_gold",
+    "statements": 10,
+    "dependencies": [
+      "model.pondolens.regional_appropriations",
+      "model.pondolens.regional_obligations",
+      "model.pondolens.hospital",
+      "model.pondolens.population",
+      "model.pondolens.grdp_per_capita",
+      "model.pondolens.unemployment_rate",
+      "model.pondolens.poverty_incidence",
+      "model.pondolens.completion_rate"
+    ]
+  },
+  "dim_particular": {
+    "layer": "dbt_test_gold",
+    "statements": 14,
+    "dependencies": []
+  },
+  "dim_age_group": {
+    "layer": "dbt_test_gold",
+    "statements": 10,
+    "dependencies": [
+      "model.pondolens.population"
+    ]
+  },
+  "fact_regional_expenditure": {
+    "layer": "dbt_test_gold",
+    "statements": 36,
+    "dependencies": [
+      "model.pondolens.regional_appropriations",
+      "model.pondolens.regional_obligations",
+      "model.pondolens.dim_location",
+      "model.pondolens.dim_year",
+      "model.pondolens.dim_particular"
+    ]
+  },
+  "dim_location": {
+    "layer": "dbt_test_gold",
+    "statements": 10,
+    "dependencies": [
+      "model.pondolens.grdp_per_capita",
+      "model.pondolens.unemployment_rate",
+      "model.pondolens.regional_appropriations",
+      "model.pondolens.region_boundaries"
+    ]
+  },
+  "fact_regional_indicator": {
+    "layer": "dbt_test_gold",
+    "statements": 30,
+    "dependencies": [
+      "model.pondolens.dim_location",
+      "model.pondolens.dim_year",
+      "model.pondolens.dim_indicator",
+      "model.pondolens.poverty_incidence",
+      "model.pondolens.unemployment_rate",
+      "model.pondolens.grdp_per_capita",
+      "model.pondolens.hospital",
+      "model.pondolens.completion_rate",
+      "model.pondolens.service_access"
+    ]
+  },
+  "dim_indicator": {
+    "layer": "dbt_test_gold",
+    "statements": 14,
+    "dependencies": [
+      "model.pondolens.service_access"
+    ]
+  }
+}
