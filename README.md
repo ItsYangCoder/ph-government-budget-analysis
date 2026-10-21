@@ -20,10 +20,11 @@ The repository also retains appropriation and obligation measures for compatible
 |---|---|
 | Source ingestion, setup, and operational checks | [Ingestion guide](docs/ingestion.md) |
 | Dataset profiling, dictionaries, and findings | [Profiling index](profiling/README.md) |
-| dbt connection setup and execution commands | [dbt guide](dbt/README.md) |
+| dbt connection setup and execution commands | [Databricks setup](dbt/README.md#databricks-first-run) · [Execution commands](dbt/README.md#day-to-day-commands) |
 | Isolated-schema testing | [Test-first guide](dbt/TEST_FIRST.md) |
-| Model and column definitions, including data tests | [Silver schema](dbt/models/silver/schema.yml) · [Gold schema](dbt/models/gold/schema.yml) |
-| Region aliases and mapping rules | [Crosswalk documentation](docs/shared_region_crosswalk.md) |
+| Silver transformation documentation | [Completion rate](docs/silver/completion_rate.md) · [GRDP per capita](docs/silver/grdp_per_capita.md) · [Hospital](docs/silver/hospital.md) · [Population](docs/silver/population.md) · [Regional appropriations](docs/silver/regional_appropriations.md) |
+| Current model and column definitions, including data tests | [Silver definitions and tests (YAML)](dbt/models/silver/schema.yml) · [Gold definitions and tests (YAML)](dbt/models/gold/schema.yml) |
+| Current crosswalk mapping and validity logic | [Crosswalk model (SQL)](dbt/models/silver/shared_region_crosswalk.sql) · [Column definitions (YAML)](dbt/models/silver/schema.yml) |
 | SQL migration decisions and runtime safeguards | [Migration notes](dbt/MIGRATION.md) |
 | Recorded offline validation | [Validation notes](dbt/VALIDATION.md) |
 
@@ -61,7 +62,7 @@ The code inventory is separate from release acceptance. [Validation notes](dbt/V
 
 ## Datasets and models
 
-Source families include DBM budget reports, PSA indicators, and hospital statistics from the source publication. Exact file references, units, and coverage are recorded in the [profiling packages](profiling/bronze/).
+Source families include DBM budget reports, PSA indicators, and hospital statistics from the source publication. Exact file references, units, and coverage are recorded in the dictionaries and findings linked from the [dataset documentation index](profiling/README.md#dataset-index).
 
 | Bronze table | Silver model | Purpose |
 |---|---|---|
