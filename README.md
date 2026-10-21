@@ -2,12 +2,9 @@
 
 ### Philippine Government Budget Analysis
 
-PondoLens is an end-to-end data engineering capstone that brings Philippine government budget data and regional indicators into a shared analytical workflow. Python loads prepared source files from Google Drive into Databricks Bronze tables. dbt transforms those records into Silver tables and Gold dimensions and facts for analysis.
+PondoLens is an end-to-end data engineering capstone developed through the FTW Foundation Data Engineering Scholarship Program, Batch 12. It brings Philippine government budget data and regional indicators into a shared analytical workflow. Python loads prepared source files from Google Drive into Databricks Bronze tables. dbt transforms those records into Silver tables and Gold dimensions and facts for analysis.
 
 The main analytical scope is **2021–2025**. Coverage varies by dataset. Missing years, source markers, and changes in regional coverage are documented rather than replaced with assumed values.
-
-**Team:** Razz, Rhea, Anji, Mia, and Joy  
-**Program:** FTW Foundation — Batch 12, Data Engineering
 
 ## Analytical focus
 
@@ -211,3 +208,11 @@ Offline checks do not execute transformations against Databricks. The [ingestion
 5. Treat a Git merge and a Databricks deployment as separate actions. Pulling code does not run ingestion or dbt.
 
 Keep credentials outside Git. Use Databricks secrets or the configured task identity. Delete task branches only after confirming that their work is merged.
+
+## Team
+
+- [Rhea Mae Alum](https://www.linkedin.com/in/rhea-alum/)
+- [Razzelle Ann Boreros](https://www.linkedin.com/in/razzelle-ann/)
+- [Anjelika Marquez](https://www.linkedin.com/in/anjelika-m-a5868827b/)
+- [Mia Barroga](https://www.linkedin.com/in/mia-barroga-ie/)
+- [Christine Joy Balansay](https://www.linkedin.com/in/christine-joy-balansay-cfmp-b132b5277/)
