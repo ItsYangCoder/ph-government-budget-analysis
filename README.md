@@ -51,7 +51,7 @@ More datasets, source references, and coverage: [profiling index](profiling/READ
 
 You can explore this project using **Databricks Free Edition**, a free account for learning and personal projects, subject to usage limits. [Create a free account](https://login.databricks.com/?dbx_source=docs&intent=CE_SIGN_UP) or [log in to Databricks](https://login.databricks.com/), then follow the setup below. See the [official Free Edition guide](https://docs.databricks.com/aws/en/getting-started/free-edition) for details.
 
-1. Configure Databricks storage, permissions, and Google Drive credentials using the [ingestion guide](docs/ingestion.md).
+1. Download the prepared data and configure your own Drive connection using [Set up your own Google Drive](#set-up-your-own-google-drive). Then configure Databricks storage and permissions using the [ingestion guide](docs/ingestion.md).
 2. Run the [ingestion runner](platform/databricks/runners/run_ingestion.py) with `dry_run=true`, review the plan, then load Bronze with `dry_run=false`.
 3. Configure the [Databricks dbt task](dbt/README.md#databricks-first-run). Bronze must exist before dbt runs.
 4. From the `dbt` project directory, validate in isolated schemas:
@@ -66,6 +66,19 @@ Repeat with unchanged inputs and compare IDs, row counts, and write metrics. Aft
 Defaults: `pondolens.dev_bronze`, `pondolens.dev_silver`, and `pondolens.dev_gold`. Git branches do not change those destinations. Use one concurrent run and one dbt thread.
 
 Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline recovery](docs/ingestion.md#pipeline-failures-and-recovery).
+
+### Set up your own Google Drive
+
+Use your own Google Cloud project, service account, and Databricks credentials. The team's credentials are not included in this repository and are not required.
+
+1. **Get the data:** open [PondoLens prepared datasets](https://drive.google.com/drive/folders/1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB), download the folder contents, extract them, and upload them into a folder in your own Google Drive. Preserve the subfolders, file names, and formats so dataset routing still works. These are the prepared ingestion inputs, not a download of the original government publications.
+2. **Enable the API:** create a project in [Google Cloud Console](https://console.cloud.google.com/) and enable **Google Drive API** under APIs & Services → Library.
+3. **Create credentials:** go to IAM & Admin → Service Accounts, create an account, then open Keys → Add key → Create new key → JSON. This pipeline uses a service-account JSON key, not an API key or interactive OAuth login. See [Google's credential guide](https://developers.google.com/workspace/guides/create-credentials#service-account-credentials).
+4. **Grant access:** share your uploaded data folder with the service account's email address as **Viewer**. This allows the pipeline to read your copy.
+5. **Connect Databricks:** store your JSON key in your own Databricks secret scope/key. Set the runner's `secret_scope` and `secret_key` to those names. Keep the JSON out of Git and notebook outputs. See [credential setup](docs/ingestion.md#set-up-your-own-drive-connection) for details and the supported private-file option.
+6. **Use your folder ID:** copy the ID after `/folders/` in your Drive URL into `drive_folder_id`. Override the project default with your own ID, then run `dry_run=true` and review the file plan before loading.
+
+Downloading the datasets does not grant access to the team's service account or Databricks workspace. Run against your own folder and workspace.
 
 ## Documentation
 

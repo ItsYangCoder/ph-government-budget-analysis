@@ -33,6 +33,41 @@ access and permission to install. Existing packages are retained. For repeatable
 Jobs, configure dependencies in the task environment. Spark is supplied by
 Databricks.
 
+## Set up your own Drive connection
+
+The source download link is in the root [README](../README.md#set-up-your-own-google-drive). Download the prepared inputs and upload them to your own Google Drive, keeping the folder layout and file names unchanged. Point the runner at the folder containing the dataset subfolders, not the outer folder created when extracting a ZIP.
+
+### Google Cloud and folder access
+
+1. Create or select your own project in [Google Cloud Console](https://console.cloud.google.com/).
+2. Open APIs & Services → Library, find Google Drive API, and enable it.
+3. Open IAM & Admin → Service Accounts → Create service account. For reading directly shared Drive files, no project-wide administrative role or domain-wide delegation is needed.
+4. Open the service account → Keys → Add key → Create new key → JSON. Download and store your key privately. If your organization blocks key creation, ask its administrator; do not bypass its policy.
+5. Copy the service account email (also available as client_email in the JSON). Share your uploaded source folder with that email as Viewer. Cloud IAM roles alone do not grant access to Drive files.
+6. Copy your folder ID from its URL. For example, `https://drive.google.com/drive/folders/YOUR_FOLDER_ID` gives `YOUR_FOLDER_ID`.
+
+Official references: [enable Drive API](https://developers.google.com/workspace/drive/api/quickstart/python#enable_the_api) · [service accounts and file sharing](https://developers.google.com/workspace/guides/create-credentials#service-account-credentials).
+
+### Store credentials and configure the runner
+
+The default authentication mode reads the complete service-account JSON from a Databricks secret. In your workspace, create a secret scope, add the JSON as a secret, and grant the job's execution identity access. Follow [Databricks secret management](https://docs.databricks.com/aws/en/security/secrets/).
+
+Set these runner parameters:
+
+| Parameter | Your value |
+|---|---|
+| drive_folder_id | Your uploaded data folder ID, not its full URL |
+| secret_scope | Your Databricks secret scope name |
+| secret_key | The key holding your complete service-account JSON |
+| dataset | all, or a supported dataset name |
+| dry_run | true for the first validation |
+
+Scope/key names are labels, not the credential contents. The repository's default source folder and secret names belong to the project setup; they do not provision credentials in a new workspace.
+
+If secret storage is unavailable in your environment, the existing runner supports explicit `--auth_mode file --service_account_path /absolute/private/path/service-account.json` arguments. The file must be readable by the Databricks execution identity, outside the Git checkout, and accessible only to intended users. A laptop path is not automatically available to Databricks. Do not commit, display, or place this key in the shared data-download folder.
+
+The authentication code requests Drive read-only access. A dry run still authenticates and downloads/parses source files; it only skips target writes. After the dry run succeeds, review coverage and the selected target, then change dry_run to false. Uploading a new copy changes Drive file IDs; update any sheet_overrides_json entries to your copied files' IDs.
+
 ## Interactive parameters
 
 Run without recognized CLI arguments to use the native Databricks widgets.
@@ -42,7 +77,7 @@ Run without recognized CLI arguments to use the native Databricks widgets.
 | `catalog` | `pondolens` | Target catalog |
 | `schema` | `dev_bronze` | Target Bronze schema |
 | `volume` | `government_budget` | Landing-file volume within the target schema |
-| `drive_folder_id` | `1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB` | Source folder ID |
+| `drive_folder_id` | `1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB` | Source folder ID; override with your own folder when reproducing the project |
 | `secret_scope` | `pondolens` | Service-account secret scope |
 | `secret_key` | `gdrive-service-account` | Service-account JSON secret key |
 | `dataset` | `all` | All supported datasets or one dataset |
@@ -93,7 +128,7 @@ widgets, Job parameters, and verification queries.
 | `population` | Population projections |
 | `unemployment_rate` | Unemployment indicators |
 | `poverty_incidence` | Poverty indicators |
-| `service_access` | Water, electricity, and internet indicators |
+| `service_access` | Source access indicators; current Silver selects water, sanitation, and hygiene |
 | `grdp_per_capita` | GRDP per capita |
 | `completion_rate` | Education completion indicators |
 | `region_boundaries` | Regional GeoJSON boundaries |
