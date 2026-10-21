@@ -1,6 +1,6 @@
 # SQL-to-dbt migration decisions
 
-All supplied Silver and Gold transformations are executable dbt model nodes. Notebook SQL cells were exported to `.sql`. `ref()` connects Silver/Gold dependencies and `source()` connects Bronze. Original files remain under `legacy_sql/original_models` and are not executed.
+All supplied Silver and Gold transformations are executable dbt model nodes. Notebook SQL cells were exported to `.sql`. `ref()` connects Silver/Gold dependencies and `source()` connects Bronze. Retained original files remain under `legacy_sql/original_models` and are not executed. The obsolete archived regional expenditure script has been removed; use the active Gold model.
 
 The `pondolens_script` materialization runs the existing validated DDL, staging views, assertions and MERGE statements in order on one adapter connection. It fetches every result so lazy assertions cannot be skipped. It stops at the first error. This is a deliberate migration bridge, not a claim that the scripts are conventional SELECT-only dbt models. Full refresh is blocked to avoid accidentally resetting Silver/fact IDs. Statements are not one transaction; completed writes may remain if a later assertion fails. Re-run after correcting the cause; keep one concurrent writer and do not run seed/reset commands.
 
@@ -12,4 +12,4 @@ Population correction to earlier review: Silver explicitly filters sex = 'Both'.
 
 Service access is included because the supplied Gold models require it. Agency actuals is not a transformation in this folder and remains an optional Bronze source. No ingestion pipeline or missing monitoring tables are invented. Bronze must already exist.
 
-Pre-existing assertions, historical mapping exceptions, marker rules and schema maintenance remain part of the scripts. The regional expenditure model no longer creates or reads a legacy backup table or automatically deletes retired particular 30051 rows. If those rows exist, validation stops before the fact MERGE and they require a separate migration. Review those behaviors before running against shared data. Test first with the isolated schema overrides in README. Connected validation is required before production acceptance.
+Pre-existing assertions, historical mapping exceptions, marker rules and schema maintenance remain part of the scripts. If retired particular 30051 rows exist, validation stops before the fact MERGE and they require a separate migration. Review those behaviors before running against shared data. Test first with the isolated schema overrides in README. Connected validation is required before production acceptance.

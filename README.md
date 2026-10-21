@@ -178,7 +178,7 @@ Default variables are `pondolens_catalog=pondolens`, `bronze_schema=dev_bronze`,
 
 `dbt build` runs models and tests in dependency order. `dbt test` checks existing tables without rebuilding them. Active models use a custom script materialization to execute SQL statements and assertions in order; this is documented in [MIGRATION.md](dbt/MIGRATION.md).
 
-Keep Bronze stable during a build and avoid simultaneous notebook writers. Full refresh is blocked. Statements are not one transaction, so earlier writes may remain if a later check fails. The expenditure model no longer creates or reads the legacy backup table; retired particular `30051` rows require a separate migration before its MERGE can proceed.
+Keep Bronze stable during a build and avoid simultaneous notebook writers. Full refresh is blocked. Statements are not one transaction, so earlier writes may remain if a later check fails. Retired particular `30051` rows require a separate migration before the expenditure MERGE can proceed.
 
 ## Local checks
 
