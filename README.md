@@ -39,15 +39,9 @@ Gold contains **five dimensions and three facts**. See the [data model](docs/dat
 
 ## Data sources
 
-| Data | Source |
-|---|---|
-| Government budgets and obligations | [DBM BESF](https://www.dbm.gov.ph/index.php/test/1205-budget-of-expenditures-and-sources-of-financing) |
-| Population projections | [PSA population projections](https://psa.gov.ph/content/calabarzon-retain-top-spot-most-populous-region-until-2035) |
-| GRDP per capita | [PSA GRDP data series](https://psa.gov.ph/statistics/grdp/data-series) |
+Budgets come from **DBM**; population and regional indicators come from **PSA**, including OpenSTAT. The [data source guide](docs/data_sources.md) lists the website, report or table to download, and project scope for each dataset. It also explains local preparation and how the datasets connect.
 
-For other PSA indicators, browse [PSA OpenSTAT](https://openstat.psa.gov.ph/). Publisher websites provide original reports and tables; they are not drop-in ingestion files. Current releases can differ from the snapshot used in PondoLens.
-
-More datasets, source references, and coverage: [profiling index](profiling/README.md#dataset-index).
+Official downloads need preparation before ingestion. Current releases may differ from the project snapshot; follow the dataset dictionaries and source notes in the guide.
 
 ## Quick start
 
@@ -71,7 +65,7 @@ Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline
 
 ### Prepare source files locally
 
-Before ingestion, extract and reshape the downloaded reports on your **local computer**. For tabular datasets, long form means one observation per row, with separate columns for fields such as year, region, measure, and value, following that dataset's dictionary. Regional boundaries use GeoJSON instead.
+Before ingestion, extract and reshape the downloaded reports on your **local computer**. Most tabular inputs use long form, meaning one observation per row, with separate columns for fields such as year, region, measure, and value, following that dataset's dictionary. Completion rate keeps separate year columns in Bronze; regional boundaries use GeoJSON instead.
 
 Match the required headers, file names, folder structure, units, and formats described in the [profiling documentation](profiling/README.md#dataset-index) and [ingestion guide](docs/ingestion.md). Long form alone is not enough if those inputs do not match the runner's rules.
 
@@ -100,6 +94,7 @@ Click a guide below to open it in this repository. Each guide explains one part 
 
 | Guide | What it explains | When to use it |
 |---|---|---|
+| [Data sources](docs/data_sources.md) | Official websites, reports, tables, project coverage, and file preparation. | Find the right data before setting up ingestion. |
 | [Ingestion guide](docs/ingestion.md) | How source files move from Google Drive into Bronze, including credentials, job settings, alerts, and recovery. | Set up the first load or troubleshoot a failed pipeline. |
 | [Profiling index](profiling/README.md) | Checks on source coverage, missing values, duplicates, and findings. Each dataset includes a dictionary explaining its columns. | Understand the source data before cleaning or using it. |
 | [dbt guide](dbt/README.md) | How to connect dbt to Databricks and run the Silver/Gold transformations and tests. | Configure the transformation task or run the pipeline after Bronze is loaded. |
