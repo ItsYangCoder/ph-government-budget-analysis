@@ -35,7 +35,7 @@ Databricks.
 
 ## Set up your own Drive connection
 
-The source download link is in the root [README](../README.md#set-up-your-own-google-drive). Download the prepared inputs and upload them to your own Google Drive, keeping the folder layout and file names unchanged. Point the runner at the folder containing the dataset subfolders, not the outer folder created when extracting a ZIP.
+Download original reports and tables from the official [source websites](../README.md#data-sources). Use the [profiling dictionaries](../profiling/README.md#dataset-index) to match the required years, columns, measures, units, and geographic coverage. Prepare long-form inputs before uploading them to your own Drive folder; the ingestion pipeline does not parse arbitrary government PDFs, and the source-extraction scripts are not included in this repository. Keep the expected dataset folder names and headers so routing and validation can recognize the inputs. The team's prepared-data folder and credentials are not distributed through this guide.
 
 ### Google Cloud and folder access
 
@@ -77,7 +77,7 @@ Run without recognized CLI arguments to use the native Databricks widgets.
 | `catalog` | `pondolens` | Target catalog |
 | `schema` | `dev_bronze` | Target Bronze schema |
 | `volume` | `government_budget` | Landing-file volume within the target schema |
-| `drive_folder_id` | `1L_kvzPjQE60GjUvthLuwxbC3xKevHsoB` | Source folder ID; override with your own folder when reproducing the project |
+| `drive_folder_id` | Set your own | Folder ID for your prepared source inputs; override the repository default |
 | `secret_scope` | `pondolens` | Service-account secret scope |
 | `secret_key` | `gdrive-service-account` | Service-account JSON secret key |
 | `dataset` | `all` | All supported datasets or one dataset |
