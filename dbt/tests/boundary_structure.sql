@@ -1,0 +1,1 @@
+select * from {{ ref('region_boundaries') }} where geometry_type not in ('Polygon','MultiPolygon') or get_json_object(geometry_json,'$.type') is null or get_json_object(geometry_json,'$.type') <> geometry_type or get_json_object(geometry_json,'$.coordinates') is null

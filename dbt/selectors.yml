@@ -1,0 +1,11 @@
+selectors:
+  - name: silver
+    definition:
+      method: tag
+      value: silver
+      parents: true
+  - name: gold
+    definition:
+      method: tag
+      value: gold
+      parents: true
