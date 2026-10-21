@@ -1,7 +1,4 @@
 ![PondoLens — Philippine Government Budget Analysis](docs/images/Philippine%20service%20banner%20with%20woven%20header.png)
-
-# PondoLens
-
 **Where does the money go?**
 
 PondoLens is an end-to-end data engineering capstone from the **FTW Foundation Data Engineering Scholarship Program, Batch 12**. It brings Philippine government budgets, population projections, and regional indicators into Databricks for analysis.
