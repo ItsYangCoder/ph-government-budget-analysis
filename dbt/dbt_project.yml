@@ -28,3 +28,5 @@ models:
       - gold
 flags:
   send_anonymous_usage_stats: false
+on-run-end:
+- "{{ record_dq_results(results) }}"
