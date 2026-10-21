@@ -248,3 +248,7 @@ The tests mock package installation and external services. They cover parsing,
 routing, parameter widgets, safeguards, dry runs, storage creation order, audit
 columns, mocked writes, and unchanged reruns. Repeat relevant live validation
 when parsing, routing, schema, or write behavior changes.
+
+## Failure alerts and recovery
+
+Configure failure notifications on the ingestion job and review partial-load handling before retrying. See the [failure recovery guide](failure_recovery.md). Email delivery must be tested in Databricks; repository documentation alone does not enable alerts.

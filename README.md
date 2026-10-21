@@ -41,6 +41,7 @@ These comparisons show patterns; they do not prove that spending caused an econo
 | Current crosswalk mapping and validity logic | [Crosswalk guide](docs/shared_region_crosswalk.md) · [Crosswalk model (SQL)](dbt/models/silver/shared_region_crosswalk.sql) |
 | SQL migration decisions and runtime safeguards | [Migration notes](dbt/MIGRATION.md) |
 | Recorded offline validation | [Validation notes](dbt/VALIDATION.md) |
+| Email alerts and failed-run recovery | [Failure recovery guide](docs/failure_recovery.md) |
 
 ## Pipeline overview
 
