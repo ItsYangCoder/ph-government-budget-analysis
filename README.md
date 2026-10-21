@@ -68,7 +68,7 @@ As of **21 October 2026**:
 | Silver | Eleven executable dbt models are included. |
 | Gold | Five dimension models and three fact models are included. |
 | Data quality | dbt schema tests, custom SQL tests, in-model assertions, and separate DQ queries are included. |
-| CI | Checks Python/notebooks, profiling packages, and the profiling SQL guard. It does not run connected dbt builds or all ingestion unit tests. |
+| CI | Checks Python/notebooks, profiling packages, all ingestion unit tests, dbt materialization tests, and offline dbt parse/compile. Connected dbt builds run separately in Databricks. |
 | Analytics and dashboard assets | `analytics/` and `dashboard/` currently contain placeholders; deployed workspace assets are not versioned there yet. |
 | Orchestration and monitoring | Databricks task setup is documented. No Prefect flow or central DQ results dashboard is implemented in this repository. |
 

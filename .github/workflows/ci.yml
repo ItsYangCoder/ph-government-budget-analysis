@@ -17,7 +17,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,18 +26,67 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            profiling/requirements-checks.txt
 
-      - name: Install notebook validator
-        run: python -m pip install "nbformat>=5.10,<6"
+      - name: Install check dependencies
+        run: |
+          python -m pip install -e '.[dev]' 'nbformat>=5.10,<6'
+          python -m pip install -r profiling/requirements-checks.txt
 
       - name: Check Python files and notebooks
         run: python scripts/check_code.py
 
-      - name: Install profiling check dependencies
-        run: python -m pip install -r profiling/requirements-checks.txt
-
       - name: Validate profiling packages
         run: python scripts/check_profiling.py
 
-      - name: Test profiling SQL guard
-        run: python -m pytest -q tests/unit/test_profiling_checks.py
+      - name: Run all offline unit tests
+        run: python -m pytest -q tests/unit
+
+  dbt:
+    name: dbt offline validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+      DATABRICKS_HOST: example.databricks.com
+      DATABRICKS_HTTP_PATH: /sql/1.0/warehouses/offline
+      DBT_ACCESS_TOKEN: offline-placeholder
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            dbt/requirements-dbt.txt
+            profiling/requirements-checks.txt
+
+      - name: Install pinned dbt and test dependencies
+        run: |
+          python -m pip install -r dbt/requirements-dbt.txt
+          python -m pip install -r profiling/requirements-checks.txt
+
+      - name: Test script materialization safeguards
+        run: python -m pytest -q dbt/verification
+
+      - name: Prepare offline connection profile
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/pondolens-dbt-profile"
+          cp dbt/profiles.yml.example "$RUNNER_TEMP/pondolens-dbt-profile/profiles.yml"
+          echo "DBT_PROFILES_DIR=$RUNNER_TEMP/pondolens-dbt-profile" >> "$GITHUB_ENV"
+
+      - name: Parse dbt project
+        run: dbt parse --project-dir dbt
+
+      - name: Compile models and tests without a warehouse connection
+        run: >-
+          dbt compile --project-dir dbt
+          --no-introspect --no-populate-cache --threads 1
+          --vars '{"silver_schema":"dbt_test_silver","gold_schema":"dbt_test_gold"}'
