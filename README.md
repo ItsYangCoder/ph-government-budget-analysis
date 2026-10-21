@@ -69,17 +69,23 @@ Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline
 
 ## Documentation
 
-| Need | Open |
-|---|---|
-| Ingestion setup, credentials, email alerts, and recovery | [Ingestion guide](docs/ingestion.md) |
-| Source profiling, dictionaries, and findings | [Profiling index](profiling/README.md) |
-| dbt setup and daily commands | [dbt guide](dbt/README.md) |
-| Isolated testing and build evidence | [Test-first guide](dbt/TEST_FIRST.md) · [Validation notes](dbt/VALIDATION.md) |
-| Gold tables and relationships | [Data model](docs/data_model.md) |
-| Column definitions and automated data tests | [Silver YAML](dbt/models/silver/schema.yml) · [Gold YAML](dbt/models/gold/schema.yml) |
-| Analytics queries and dashboard setup | [Analytics](analytics/readme.md) · [Dashboard](dashboard/PondoLens_Dashboard.md) |
-| Additional data-quality checks | [Data quality](data_quality/readme.md) |
-| SQL migration and execution safeguards | [Migration notes](dbt/MIGRATION.md) |
+Click a guide below to open it in this repository. Each guide explains one part of the project and links to the related code.
+
+**New to the project?** Read the Data model to understand the tables, then the Ingestion guide and dbt guide to follow how data is loaded and transformed. Use Analytics and Dashboard when you are ready to explore the results.
+
+| Guide | What it explains | When to use it |
+|---|---|---|
+| [Ingestion guide](docs/ingestion.md) | How source files move from Google Drive into Bronze, including credentials, job settings, alerts, and recovery. | Set up the first load or troubleshoot a failed pipeline. |
+| [Profiling index](profiling/README.md) | Checks on source coverage, missing values, duplicates, and findings. Each dataset includes a dictionary explaining its columns. | Understand the source data before cleaning or using it. |
+| [dbt guide](dbt/README.md) | How to connect dbt to Databricks and run the Silver/Gold transformations and tests. | Configure the transformation task or run the pipeline after Bronze is loaded. |
+| [Test-first guide](dbt/TEST_FIRST.md) | How to test using separate schemas, which are named groups of tables. | Try changes without writing to the default Silver/Gold tables. |
+| [Validation notes](dbt/VALIDATION.md) | Recorded build results, tested versions, and the limits of the available evidence. | Review what has been checked and what still needs verification. |
+| [Data model](docs/data_model.md) | What each Gold table represents and how table keys connect budgets, population, and indicators. | Plan a query or understand which tables to join. |
+| [Silver YAML](dbt/models/silver/schema.yml) · [Gold YAML](dbt/models/gold/schema.yml) | dbt configuration files containing column descriptions and automated data tests. GitHub displays these as code. | Check column definitions or review the tests attached to a model. |
+| [Analytics](analytics/readme.md) | SQL queries and setup steps for the three analytical questions. | Calculate the reporting measures after building Gold. |
+| [Dashboard](dashboard/PondoLens_Dashboard.md) | Chart definitions, data sources, calculations, and setup for the Databricks dashboard export. | Set up the dashboard or trace a chart back to its data. |
+| [Data quality](data_quality/readme.md) | Additional checks that complement the tests inside dbt. | Investigate values or run targeted dataset checks. |
+| [Migration notes](dbt/MIGRATION.md) | How the original SQL was adapted into dbt and how the scripts execute. | Review transformation changes and execution safeguards. |
 
 ## Silver documentation
 
