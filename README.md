@@ -1,4 +1,4 @@
-# PondoLens
+![Philippine service banner with woven header](../Philippine%20service%20banner%20with%20woven%20header.png)
 
 ### Philippine Government Budget Analysis
 
