@@ -69,11 +69,21 @@ Defaults: `pondolens.dev_bronze`, `pondolens.dev_silver`, and `pondolens.dev_gol
 
 Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline recovery](docs/ingestion.md#pipeline-failures-and-recovery).
 
+### Prepare source files locally
+
+Before ingestion, extract and reshape the downloaded reports on your **local computer**. For tabular datasets, long form means one observation per row, with separate columns for fields such as year, region, measure, and value, following that dataset's dictionary. Regional boundaries use GeoJSON instead.
+
+Match the required headers, file names, folder structure, units, and formats described in the [profiling documentation](profiling/README.md#dataset-index) and [ingestion guide](docs/ingestion.md). Long form alone is not enough if those inputs do not match the runner's rules.
+
+**Official websites → local extraction and preparation → your Google Drive → ingestion → Bronze → Silver → Gold.**
+
+Upload the prepared files to your own Drive folder, then run ingestion with `dry_run=true` to validate the inputs before loading. The runner reads prepared inputs; PDF extraction and source-specific reshaping scripts are not included in this repository.
+
 ### Set up your own Google Drive
 
 Use your own Google Cloud project, service account, and Databricks credentials. The team's credentials are not included in this repository and are not required.
 
-1. **Get the data:** download the reports or tables from the official websites in [Data sources](#data-sources). Select the matching years, measures, units, and geographic coverage using the [dataset dictionaries](profiling/README.md#dataset-index). Prepare the files in the expected long-form format, then upload them to your own Google Drive. This repository does not include the PDF/Excel extraction scripts or automatically download government reports.
+1. **Get the data:** download the reports or tables from the official websites in [Data sources](#data-sources). Select the matching years, measures, units, and geographic coverage using the [dataset dictionaries](profiling/README.md#dataset-index).
 2. **Enable the API:** create a project in [Google Cloud Console](https://console.cloud.google.com/) and enable **Google Drive API** under APIs & Services → Library.
 3. **Create credentials:** go to IAM & Admin → Service Accounts, create an account, then open Keys → Add key → Create new key → JSON. This pipeline uses a service-account JSON key, not an API key or interactive OAuth login. See [Google's credential guide](https://developers.google.com/workspace/guides/create-credentials#service-account-credentials).
 4. **Grant access:** share your uploaded data folder with the service account's email address as **Viewer**. This allows the pipeline to read your copy.
@@ -104,23 +114,25 @@ Click a guide below to open it in this repository. Each guide explains one part 
 
 ## Silver documentation
 
-Guides cover columns, cleaning rules, checks, and load behavior.
+Silver guides explain how each Bronze dataset becomes a cleaned table: its columns, scope, transformation rules, quality checks, and rerun behavior.
 
-| Dataset | Documentation | Model |
-|---|---|---|
-| Completion rate | [Guide](docs/silver/completion_rate.md) | [SQL](dbt/models/silver/completion_rate.sql) |
-| GRDP per capita | [Guide](docs/silver/grdp_per_capita.md) | [SQL](dbt/models/silver/grdp_per_capita.sql) |
-| Hospital | [Guide](docs/silver/hospital.md) | [SQL](dbt/models/silver/hospital.sql) |
-| Population | [Guide](docs/silver/population.md) | [SQL](dbt/models/silver/population.sql) |
-| Poverty incidence | [Guide](docs/silver/poverty_incidence.md) | [SQL](dbt/models/silver/poverty_incidence.sql) |
-| Region boundaries / choropleth geometry | [Guide](docs/silver/region_boundaries.md) | [SQL](dbt/models/silver/region_boundaries.sql) |
-| Regional appropriations | [Guide](docs/silver/regional_appropriations.md) | [SQL](dbt/models/silver/regional_appropriations.sql) |
-| Regional obligations | [Guide](docs/silver/regional_obligations.md) | [SQL](dbt/models/silver/regional_obligations.sql) |
-| Service access | [Guide](docs/silver/service_access.md) | [SQL](dbt/models/silver/service_access.sql) |
-| Unemployment rate | [Guide](docs/silver/unemployment_rate.md) | [SQL](dbt/models/silver/unemployment_rate.sql) |
-| Shared region crosswalk | [Guide](docs/shared_region_crosswalk.md) | [SQL](dbt/models/silver/shared_region_crosswalk.sql) |
+**Use these guides before querying a Silver table, changing its transformation, or investigating a failed check.** Open the Guide for an explanation; open SQL to see the implementation. For original source headers and local file preparation, use the Bronze profiling dictionaries instead.
 
-Column definitions and data tests: [Silver schema YAML](dbt/models/silver/schema.yml).
+| Dataset | What this guide helps you do | Guide | Model |
+|---|---|---|---|
+| Completion rate | Understand education-level and sex breakdowns, missing rates, and how to compare completion percentages. | [Guide](docs/silver/completion_rate.md) | [SQL](dbt/models/silver/completion_rate.sql) |
+| GRDP per capita | Choose current or constant prices and review national rows and historical NIR mapping. | [Guide](docs/silver/grdp_per_capita.md) | [SQL](dbt/models/silver/grdp_per_capita.sql) |
+| Hospital | Check government-hospital coverage, count validation, and missing years before using facility counts. | [Guide](docs/silver/hospital.md) | [SQL](dbt/models/silver/hospital.sql) |
+| Population | Understand projections, age groups, and Both-sex scope before calculating regional population totals. | [Guide](docs/silver/population.md) | [SQL](dbt/models/silver/population.sql) |
+| Poverty incidence | Choose families or population estimates and interpret reliability notes, footnotes, and NIR exceptions. | [Guide](docs/silver/poverty_incidence.md) | [SQL](dbt/models/silver/poverty_incidence.sql) |
+| Region boundaries | Understand GeoJSON validation and how regional shapes connect to choropleth maps. | [Guide](docs/silver/region_boundaries.md) | [SQL](dbt/models/silver/region_boundaries.sql) |
+| Regional appropriations | Understand approved allocations, units, detail rows, and location mapping before totaling budgets. | [Guide](docs/silver/regional_appropriations.md) | [SQL](dbt/models/silver/regional_appropriations.sql) |
+| Regional obligations | Interpret commitments, peso conversion, dash/blank statuses, and Central Office/Nationwide records. | [Guide](docs/silver/regional_obligations.md) | [SQL](dbt/models/silver/regional_obligations.sql) |
+| Service access | Check water, sanitation, and hygiene definitions, family denominators, and supported survey years. | [Guide](docs/silver/service_access.md) | [SQL](dbt/models/silver/service_access.sql) |
+| Unemployment rate | Review selected releases, year-valid region mapping, and how regional rates are loaded. | [Guide](docs/silver/unemployment_rate.md) | [SQL](dbt/models/silver/unemployment_rate.sql) |
+| Shared region crosswalk | Review standard region codes, aliases, and validity years when investigating mapping issues. | [Guide](docs/shared_region_crosswalk.md) | [SQL](dbt/models/silver/shared_region_crosswalk.sql) |
+
+Column definitions and automated data tests: [Silver schema YAML](dbt/models/silver/schema.yml).
 
 ## Repository map
 
