@@ -2,7 +2,7 @@
 
 -- AP2: Population Share vs Spending Share
 -- Includes spending per person (PHP)
--- Databricks SQL Materialized View
+-- Databricks SQL view
 
 CREATE OR REPLACE VIEW
     pondolens.dev_gold.mv_population_spending_alignment
@@ -16,10 +16,15 @@ WITH regional_population AS (
     FROM pondolens.dev_gold.fact_population fp
     INNER JOIN pondolens.dev_gold.dim_age_group dag
         ON fp.age_group_id = dag.age_group_id
-    WHERE fp.population_count IS NOT NULL
+    WHERE dag.age_min IS NOT NULL
     GROUP BY
         fp.year_id,
         fp.location_id
+    HAVING COUNT(*) = (SELECT COUNT(*) FROM pondolens.dev_gold.dim_age_group WHERE age_min IS NOT NULL)
+       AND COUNT(DISTINCT fp.age_group_id) = COUNT(*)
+       AND COUNT(*) = COUNT(fp.population_count)
+       AND MIN(fp.population_count) >= 0
+       AND SUM(fp.population_count) > 0
 ),
 
 regional_obligations AS (

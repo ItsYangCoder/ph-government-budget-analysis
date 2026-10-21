@@ -30,7 +30,11 @@ population AS (
   JOIN pondolens.dev_gold.dim_age_group a ON fp.age_group_id = a.age_group_id
   WHERE a.age_min IS NOT NULL
   GROUP BY fp.year_id, fp.location_id
-  HAVING COUNT(*) = COUNT(fp.population_count) AND SUM(fp.population_count) > 0
+  HAVING COUNT(*) = (SELECT COUNT(*) FROM pondolens.dev_gold.dim_age_group WHERE age_min IS NOT NULL)
+     AND COUNT(DISTINCT fp.age_group_id) = COUNT(*)
+     AND COUNT(*) = COUNT(fp.population_count)
+     AND MIN(fp.population_count) >= 0
+     AND SUM(fp.population_count) > 0
 ),
 per_region AS (
   SELECT r.location_code, r.location AS region, y.year,
@@ -85,7 +89,11 @@ population AS (
   JOIN pondolens.dev_gold.dim_age_group a ON fp.age_group_id = a.age_group_id
   WHERE a.age_min IS NOT NULL
   GROUP BY fp.year_id, fp.location_id
-  HAVING COUNT(*) = COUNT(fp.population_count) AND SUM(fp.population_count) > 0
+  HAVING COUNT(*) = (SELECT COUNT(*) FROM pondolens.dev_gold.dim_age_group WHERE age_min IS NOT NULL)
+     AND COUNT(DISTINCT fp.age_group_id) = COUNT(*)
+     AND COUNT(*) = COUNT(fp.population_count)
+     AND MIN(fp.population_count) >= 0
+     AND SUM(fp.population_count) > 0
 ),
 per_region AS (
   SELECT r.location AS region, y.year,

@@ -153,9 +153,9 @@ locations_with_geometry AS (
 )
 
 SELECT
-    10000 + ROW_NUMBER() OVER (
+    CAST(10000 + ROW_NUMBER() OVER (
         ORDER BY geographic_level, location_code
-    ) AS location_id,
+    ) AS BIGINT) AS location_id,
 
     location_code,
     location,

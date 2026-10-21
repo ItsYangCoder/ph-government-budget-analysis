@@ -198,7 +198,7 @@ For example, one location record can be referenced by multiple budget entries, p
 
 PK/FK labels describe the intended relationships. SQL assertions and dbt tests check unique keys, required values, and dimension matches; the diagram does not imply database-enforced foreign keys.
 
-The current SQL uses BIGINT for `dim_location.location_id` and the population reference, but INT for the location references in the expenditure and indicator facts. Current IDs fit INT; aligning these types remains an implementation cleanup. This guide records the existing types rather than claiming they are already consistent.
+All Gold location references use BIGINT to match `dim_location.location_id`. Population mapping is checked against eligible Silver rows before writing. AP2/AP3 comparisons include only region-years with every expected detail age group exactly once and a positive population total.
 
 ## Combining the Fact Tables
 

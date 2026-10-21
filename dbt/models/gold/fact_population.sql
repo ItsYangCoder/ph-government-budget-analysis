@@ -1,22 +1,30 @@
 {{ config(materialized='pondolens_script', database=var('pondolens_catalog')) }}
-CREATE OR REPLACE TEMP VIEW dbt_fact_population_candidate AS
-WITH population_with_keys AS (
-  -- Get the year, location, and age group surrogate keys from the other gold dim tables.
-  SELECT
-    y.year_id,
-    l.location_id,
-    a.age_group_id,
-    p.population AS population_count
-  FROM {{ ref('population') }} p
-  INNER JOIN {{ ref('dim_year') }} y
-    ON y.year = p.year
-  INNER JOIN {{ ref('dim_location') }} l
-    ON l.location_code = UPPER(TRIM(p.region_code))
-  INNER JOIN {{ ref('dim_age_group') }} a
-    ON a.age_group = p.age_group
-  WHERE p.population IS NOT NULL
-    AND p.sex = 'Both'
+CREATE OR REPLACE TEMP VIEW dbt_population_with_keys AS
+SELECT
+  y.year_id,
+  l.location_id,
+  a.age_group_id,
+  p.population AS population_count
+FROM {{ ref('population') }} p
+LEFT JOIN {{ ref('dim_year') }} y ON y.year = p.year
+LEFT JOIN {{ ref('dim_location') }} l
+  ON l.location_code = UPPER(TRIM(p.region_code))
+LEFT JOIN {{ ref('dim_age_group') }} a ON a.age_group = p.age_group
+WHERE p.sex = 'Both'
+-- pondolens:statement --
+SELECT ASSERT_TRUE(
+  COUNT(*) > 0
+  AND COUNT(*) = (SELECT COUNT(*) FROM {{ ref('population') }} WHERE sex = 'Both')
+  AND COUNT_IF(year_id IS NULL OR location_id IS NULL OR age_group_id IS NULL
+               OR population_count IS NULL OR population_count < 0) = 0
+  AND (SUM(population_count) <=> (
+    SELECT SUM(population) FROM {{ ref('population') }} WHERE sex = 'Both'
+  )),
+  'Population dimension mapping lost, multiplied, or invalidated Silver records.'
 )
+FROM dbt_population_with_keys
+-- pondolens:statement --
+CREATE OR REPLACE TEMP VIEW dbt_fact_population_candidate AS
 SELECT
   -- Assign unique IDs starting at 90000, ordered by year, location, age group
   CAST(
@@ -29,7 +37,7 @@ SELECT
   location_id,
   age_group_id,
   population_count
-FROM population_with_keys
+FROM dbt_population_with_keys
 -- pondolens:statement --
 SELECT ASSERT_TRUE(COUNT(*) > 0, 'Empty fact_population source') FROM dbt_fact_population_candidate
 -- pondolens:statement --
