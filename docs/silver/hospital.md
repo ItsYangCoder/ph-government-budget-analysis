@@ -142,6 +142,6 @@ The temporary staging view is evaluated against its underlying tables; the valid
 
 - [Bronze findings](../../profiling/bronze/hospital/findings.md)
 - [Bronze data dictionary](../../profiling/bronze/hospital/data_dictionary.md)
-- [Crosswalk documentation](../crosswalk.md)
+- [Crosswalk documentation](../shared_region_crosswalk.md)
 
 Repository destination: `docs/silver/hospital.md`. Keep the revised executable SQL in the hospital Silver folder and update its repository reference if the notebook is replaced by a plain SQL file.

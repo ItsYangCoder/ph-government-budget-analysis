@@ -5,7 +5,7 @@ Updated: 19 October 2026 (Asia/Manila)
 Source: `pondolens.dev_bronze.completion_rate`  
 Reference: `pondolens.dev_silver.shared_region_crosswalk`  
 Target: `pondolens.dev_silver.completion_rate`  
-SQL: `dbt/models/02_silver/completion_rate/completion_rate.sql`  
+SQL: `dbt/models/silver/completion_rate.sql`  
 Scope: source year labels 2021–2025
 
 ## Purpose and grain
@@ -206,6 +206,6 @@ When a run fails, inspect the failed assertion, correct the responsible source o
 
 - [Bronze findings](../../profiling/bronze/completion_rate/findings.md)
 - [Bronze data dictionary](../../profiling/bronze/completion_rate/data_dictionary.md)
-- [Completion rate SQL](../../dbt/models/02_silver/completion_rate/completion_rate.sql)
+- [Completion rate SQL](../../dbt/models/silver/completion_rate.sql)
 
 Repository destination: `docs/silver/completion_rate.md`.

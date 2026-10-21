@@ -36,7 +36,7 @@ These comparisons show patterns; they do not prove that spending caused an econo
 | Dataset profiling, dictionaries, and findings | [Profiling index](profiling/README.md) |
 | dbt connection setup and execution commands | [Databricks setup](dbt/README.md#databricks-first-run) · [Execution commands](dbt/README.md#day-to-day-commands) |
 | Isolated-schema testing | [Test-first guide](dbt/TEST_FIRST.md) |
-| Silver transformation documentation | [Completion rate](docs/silver/completion_rate.md) · [GRDP per capita](docs/silver/grdp_per_capita.md) · [Hospital](docs/silver/hospital.md) · [Population](docs/silver/population.md) · [Regional appropriations](docs/silver/regional_appropriations.md) |
+| Silver transformation documentation | [Silver documentation index](#silver-documentation) |
 | Current model and column definitions, including data tests | [Silver definitions and tests (YAML)](dbt/models/silver/schema.yml) · [Gold definitions and tests (YAML)](dbt/models/gold/schema.yml) |
 | Current crosswalk mapping and validity logic | [Crosswalk guide](docs/shared_region_crosswalk.md) · [Crosswalk model (SQL)](dbt/models/silver/shared_region_crosswalk.sql) |
 | SQL migration decisions and runtime safeguards | [Migration notes](dbt/MIGRATION.md) |
@@ -53,7 +53,7 @@ These comparisons show patterns; they do not prove that spending caused an econo
 | Profiling | SQL checks coverage, missing values, markers, duplicates, and proposed treatments. | `profiling/bronze/` |
 | Silver | dbt standardizes types, labels, geography, and dataset-specific rules. | `pondolens.dev_silver` |
 | Gold | dbt builds shared dimensions and facts at defined grains. | `pondolens.dev_gold` |
-| Analysis and display | Gold tables support analytical queries and dashboard visuals. | [Analytics SQL](analytics/readme.md) and [dashboard export](dashboard/readme.md) |
+| Analysis and display | Gold tables support analytical queries and dashboard visuals. | [Analytics SQL](analytics/readme.md) and [dashboard export](dashboard/PondoLens_Dashboard.md) |
 
 Python ingestion and dbt transformations are separate tasks. **dbt requires Bronze data to exist first.** A new Databricks account also needs storage, authentication, permissions, and a configured connection; cloning this repository alone does not populate Bronze.
 
@@ -95,6 +95,26 @@ Source families include DBM budget reports, PSA indicators, and hospital statist
 
 `agency_actuals` remains an ingestion dataset and an optional dbt source, disabled by default through `include_agency_actuals`. It has no active Silver/Gold transformation. Service access remains in the executable dbt graph; removing it from the presentation does not disable that dependency. CHED graduates, standalone GRDP, and sector expenditure are excluded from the current ingestion configuration.
 
+### Silver documentation
+
+Each guide explains the table columns, cleaning rules, quality checks, and load behavior. Use the linked SQL for the current implementation.
+
+| Dataset | Documentation | Model |
+|---|---|---|
+| Completion rate | [Guide](docs/silver/completion_rate.md) | [SQL](dbt/models/silver/completion_rate.sql) |
+| GRDP per capita | [Guide](docs/silver/grdp_per_capita.md) | [SQL](dbt/models/silver/grdp_per_capita.sql) |
+| Hospital | [Guide](docs/silver/hospital.md) | [SQL](dbt/models/silver/hospital.sql) |
+| Population | [Guide](docs/silver/population.md) | [SQL](dbt/models/silver/population.sql) |
+| Poverty incidence | [Guide](docs/silver/poverty_incidence.md) | [SQL](dbt/models/silver/poverty_incidence.sql) |
+| Region boundaries / choropleth geometry | [Guide](docs/silver/region_boundaries.md) | [SQL](dbt/models/silver/region_boundaries.sql) |
+| Regional appropriations | [Guide](docs/silver/regional_appropriations.md) | [SQL](dbt/models/silver/regional_appropriations.sql) |
+| Regional obligations | [Guide](docs/silver/regional_obligations.md) | [SQL](dbt/models/silver/regional_obligations.sql) |
+| Service access | [Guide](docs/silver/service_access.md) | [SQL](dbt/models/silver/service_access.sql) |
+| Unemployment rate | [Guide](docs/silver/unemployment_rate.md) | [SQL](dbt/models/silver/unemployment_rate.sql) |
+| Shared region crosswalk | [Guide](docs/shared_region_crosswalk.md) | [SQL](dbt/models/silver/shared_region_crosswalk.sql) |
+
+Column definitions and data tests: [Silver schema YAML](dbt/models/silver/schema.yml).
+
 ### Gold tables
 
 | Table | One row represents |
@@ -126,7 +146,7 @@ Facts connect through shared dimension keys. Aggregate each fact to the required
 | `dbt/verification/` | Offline materialization control-flow tests |
 | `dbt/legacy_sql/` | Archived original scripts; outside active dbt model paths |
 | `profiling/bronze/` | Profiling SQL, dictionaries, and findings |
-| `docs/` | Ingestion, crosswalk, and selected Silver documentation |
+| `docs/` | Ingestion, crosswalk, and Silver documentation |
 | `data_quality/` | Additional DQ queries and notebooks |
 | `analytics/`, `dashboard/` | Analytical queries, dashboard export, and setup guides |
 | `tests/` | Ingestion unit tests and connected comparison script |

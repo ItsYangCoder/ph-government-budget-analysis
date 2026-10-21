@@ -5,7 +5,7 @@ Updated: 20 October 2026 (Asia/Manila)
 Source: `pondolens.dev_bronze.grdp_per_capita`  
 Reference: `pondolens.dev_silver.shared_region_crosswalk`  
 Target: `pondolens.dev_silver.grdp_per_capita`  
-SQL: `dbt/models/02_silver/grdp_per_capita/grdp_per_capita.sql`  
+SQL: `dbt/models/silver/grdp_per_capita.sql`  
 Scope: source year labels 2021–2025
 
 ## Purpose and grain
@@ -200,6 +200,6 @@ On failure, stop dependent processing, investigate the assertion, correct the re
 - [Bronze profiling](../../profiling/bronze/grdp_per_capita/profiling.sql)
 - [Bronze findings](../../profiling/bronze/grdp_per_capita/findings.md)
 - [Bronze data dictionary](../../profiling/bronze/grdp_per_capita/data_dictionary.md)
-- [GRDP per capita Silver SQL](../../dbt/models/02_silver/grdp_per_capita/grdp_per_capita.sql)
+- [GRDP per capita Silver SQL](../../dbt/models/silver/grdp_per_capita.sql)
 
 Repository destination: `docs/silver/grdp_per_capita.md`.
