@@ -48,3 +48,7 @@ Read `MIGRATION.md` for inherited behavior and runtime limits. Rate and per-capi
 ## Acceptance
 
 Offline parse and structural checks do not prove that queries run on your warehouse or that source values are correct. Run the isolated build and an immediate rerun; unchanged sources should not allocate new Silver/fact MERGE IDs. Gold year/location/age-group and population IDs now use stable natural-key MERGE. Record the dbt version, warehouse, schema variables and run artifacts. Only then promote the run configuration.
+
+## Failure alerts and recovery
+
+Configure failure notifications on the dbt job. A failed build can leave earlier writes committed. Use the [failure recovery guide](../docs/failure_recovery.md) to inspect affected tables and validate a full rerun before resuming downstream refreshes.
