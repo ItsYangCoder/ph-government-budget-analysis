@@ -249,6 +249,25 @@ routing, parameter widgets, safeguards, dry runs, storage creation order, audit
 columns, mocked writes, and unchanged reruns. Repeat relevant live validation
 when parsing, routing, schema, or write behavior changes.
 
-## Failure alerts and recovery
+## Pipeline failures and recovery
 
-Configure failure notifications on the ingestion job and review partial-load handling before retrying. See the [failure recovery guide](failure_recovery.md). Email delivery must be tested in Databricks; repository documentation alone does not enable alerts.
+This section covers both Bronze ingestion and dbt Silver/Gold jobs.
+
+### Email alerts
+
+In each existing Databricks job, open **Job notifications → Edit notifications → Add notification**, choose **Email address**, enter the agreed recipient, select **Failure**, and save. If ingestion and dbt have separate jobs, configure both. Use task-level Failure notifications to catch task failures when the job finishes as “Succeeded with failures.” Review retry settings to avoid repeated emails.
+
+**Status:** recipients and email delivery have not yet been verified. Test delivery with a temporary, unscheduled job that fails without writing data, confirm receipt, then remove the test job. Do not break a live pipeline to test alerts. Driver ERROR messages alone do not trigger a failure email if the task succeeds.
+
+### When a job fails
+
+1. **Pause scheduled runs and dashboard refreshes.** Keep one writer active at a time.
+2. **Open the failed run and check the first error.** Save the run link, Git commit, target schemas, source snapshot, and logs. Keep credentials and signed download links out of Git.
+3. **Check tables already updated.** Ingestion writes one table at a time; dbt commits statements separately. A failure does not undo earlier writes. Check the ingestion log and `DESCRIBE HISTORY` for affected tables in the actual target schema.
+4. **Fix the cause.** Check source completeness, mappings, permissions, and code. A file can still exist but contain fewer rows, so compare year/region coverage and counts. Do not bypass checks, drop tables, reset IDs, or use `--full-refresh`.
+5. **Rerun with the same verified target settings.** For ingestion, dry-run the complete source first. For dbt, rerun the full build after fixing inputs; do not resume at an arbitrary SQL statement. If incorrect data was committed, review known-good versions and related dimension/fact tables with the job and dataset owners before any restoration. Keep refreshes paused until recovery is agreed.
+6. **Validate before resuming.** Confirm required models/tests pass, coverage and totals match the source, IDs remain stable, and write metrics are expected. Check analytics views separately; dbt does not build them. Record the cause, fix, rerun link, results, and unresolved issues before resuming refreshes.
+
+If dbt passes but driver logs report wrapper/artifact errors, check the final job/task status and downloaded artifacts separately. Do not change model SQL just to silence driver messages. Delta history is not a long-term backup; do not run VACUUM while recovery is being reviewed.
+
+References: [Databricks notifications](https://docs.databricks.com/aws/en/jobs/notifications) · [Table history](https://docs.databricks.com/aws/en/tables/history) · [dbt validation record](../dbt/VALIDATION.md).
