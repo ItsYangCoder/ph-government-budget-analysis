@@ -51,4 +51,4 @@ Offline parse and structural checks do not prove that queries run on your wareho
 
 ## Failure alerts and recovery
 
-Configure failure notifications on the dbt job. A failed build can leave earlier writes committed. Use the [failure recovery guide](../docs/failure_recovery.md) to inspect affected tables and validate a full rerun before resuming downstream refreshes.
+See [Pipeline failures and recovery](../docs/ingestion.md#pipeline-failures-and-recovery) for email alerts, partial-write checks, and safe reruns.
