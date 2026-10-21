@@ -19,16 +19,18 @@ obligations AS (
   FROM pondolens.dev_gold.fact_regional_expenditure f
   JOIN regions r ON f.location_id = r.location_id
   JOIN pondolens.dev_gold.dim_particular p ON f.particular_id = p.particular_id
-  WHERE p.category <> 'UNKNOWN'
+  WHERE p.category <> 'UNKNOWN' AND f.obligation_amount IS NOT NULL
   -- AND p.category = 'DEPARTMENTS'
   GROUP BY f.year_id, f.location_id
 ),
 population AS (
-  SELECT fp.year_id, fp.location_id, fp.population_count AS population
+  SELECT fp.year_id, fp.location_id, SUM(fp.population_count) AS population
   FROM pondolens.dev_gold.fact_population fp
   JOIN regions r ON fp.location_id = r.location_id
   JOIN pondolens.dev_gold.dim_age_group a ON fp.age_group_id = a.age_group_id
-  WHERE a.age_min IS NULL AND a.age_max IS NULL
+  WHERE a.age_min IS NOT NULL
+  GROUP BY fp.year_id, fp.location_id
+  HAVING COUNT(*) = COUNT(fp.population_count) AND SUM(fp.population_count) > 0
 ),
 per_region AS (
   SELECT r.location_code, r.location AS region, y.year,
@@ -51,8 +53,8 @@ SELECT
   pr.population,
   ROUND(pr.per_resident, 0)                                 AS per_resident,
   ROUND(n.national_per_resident, 0)                         AS national_per_resident,
-  ROUND(pr.per_resident / n.national_per_resident * 100, 0) AS per_100_national,
-  ROUND(pr.per_resident / n.national_per_resident * 100, 0) - 100 AS diff_from_100,
+  ROUND(TRY_DIVIDE(pr.per_resident, n.national_per_resident) * 100, 0) AS per_100_national,
+  ROUND(TRY_DIVIDE(pr.per_resident, n.national_per_resident) * 100, 0) - 100 AS diff_from_100,
   CASE WHEN pr.per_resident >= n.national_per_resident
        THEN 'Above national average' ELSE 'Below national average' END AS vs_national
 FROM per_region pr
@@ -72,16 +74,18 @@ obligations AS (
   FROM pondolens.dev_gold.fact_regional_expenditure f
   JOIN regions r ON f.location_id = r.location_id
   JOIN pondolens.dev_gold.dim_particular p ON f.particular_id = p.particular_id
-  WHERE p.category <> 'UNKNOWN'
+  WHERE p.category <> 'UNKNOWN' AND f.obligation_amount IS NOT NULL
   -- AND p.category = 'DEPARTMENTS'
   GROUP BY f.year_id, f.location_id
 ),
 population AS (
-  SELECT fp.year_id, fp.location_id, fp.population_count AS population
+  SELECT fp.year_id, fp.location_id, SUM(fp.population_count) AS population
   FROM pondolens.dev_gold.fact_population fp
   JOIN regions r ON fp.location_id = r.location_id
   JOIN pondolens.dev_gold.dim_age_group a ON fp.age_group_id = a.age_group_id
-  WHERE a.age_min IS NULL AND a.age_max IS NULL
+  WHERE a.age_min IS NOT NULL
+  GROUP BY fp.year_id, fp.location_id
+  HAVING COUNT(*) = COUNT(fp.population_count) AND SUM(fp.population_count) > 0
 ),
 per_region AS (
   SELECT r.location AS region, y.year,
@@ -99,6 +103,6 @@ SELECT
   MIN_BY(region, per_resident)                      AS lowest_region,
   ROUND(MAX(per_resident), 0)                       AS highest_per_resident,
   MAX_BY(region, per_resident)                      AS highest_region,
-  ROUND(MAX(per_resident) / MIN(per_resident), 1)   AS highest_vs_lowest_x
+  ROUND(TRY_DIVIDE(MAX(per_resident), MIN(per_resident)), 1)   AS highest_vs_lowest_x
 FROM per_region
 GROUP BY year;

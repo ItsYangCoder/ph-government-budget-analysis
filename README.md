@@ -54,7 +54,7 @@ Full setup and commands: [dbt guide](dbt/README.md). Failed-run steps: [pipeline
 | Ingestion setup, credentials, email alerts, and recovery | [Ingestion guide](docs/ingestion.md) |
 | Source profiling, dictionaries, and findings | [Profiling index](profiling/README.md) |
 | dbt setup and daily commands | [dbt guide](dbt/README.md) |
-| Isolated testing and recorded validation | [Test-first guide](dbt/TEST_FIRST.md) · [Validation notes](dbt/VALIDATION.md) |
+| Isolated testing and build evidence | [Test-first guide](dbt/TEST_FIRST.md) · [Validation notes](dbt/VALIDATION.md) |
 | Gold tables and relationships | [Data model](docs/data_model.md) |
 | Column definitions and automated data tests | [Silver YAML](dbt/models/silver/schema.yml) · [Gold YAML](dbt/models/gold/schema.yml) |
 | Analytics queries and dashboard setup | [Analytics](analytics/readme.md) · [Dashboard](dashboard/PondoLens_Dashboard.md) |

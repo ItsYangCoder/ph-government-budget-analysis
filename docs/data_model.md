@@ -1,6 +1,6 @@
 # PondoLens Data Model
 
-PondoLens transforms raw Philippine government budget, population and development data into structured datasets for analyzing government budget and spending. The model supports reporting on where funds are appropriated, how appropriations compare with obligations, and how regional budgets relate to population and economic csonditions.
+PondoLens transforms raw Philippine government budget, population and development data into structured datasets for analyzing government budget and spending. The model supports reporting on where funds are appropriated, how appropriations compare with obligations, and how regional budgets relate to population and economic conditions.
 
 The reporting scope covers **2021–2025**. Data passes through Bronze for raw ingestion, Silver for cleaning and standardization, and Gold for analysis. This document describes the Gold data model.
 
@@ -41,7 +41,7 @@ Provides the standardized geographic reference used across the model. Records wi
 | `location` | Location name. |
 | `geographic_level` | Classification used to distinguish regional, national and other allocation locations. |
 | `geometry_json` | Geographic boundary information for map visualizations. |
-| `psgc` | Philippine Standard Geographic Code, where applicable. |
+| `psgc` | Source identifier labeled PSGC, retained as text. Its official code version is not independently verified. |
 
 ### `dim_particular`
 
@@ -90,7 +90,7 @@ Stores government appropriations and obligations for budget analysis. Keeping bo
 
 | Column | Description |
 |---|---|
-| `regional_budget_id` — PK | Unique identifier for each expenditure record. |
+| `regional_expenditure_id` — PK | Unique identifier for each expenditure record. |
 | `year_id` — FK | References `dim_year`. |
 | `particular_id` — FK | References `dim_particular`. |
 | `location_id` — FK | References `dim_location`. |
@@ -134,6 +134,9 @@ Stores regional development measurements with one measurement per record. This s
 | `indicator_id` — FK | References `dim_indicator`. |
 | `location_id` — FK | References `dim_location`. |
 | `measurement` | Numerical value expressed in the indicator’s defined unit. |
+| `value_status` | Status retained for interpreting available and missing measurements. |
+| `source_table` | Silver table that supplied the measurement. |
+| `processed_at` | Time the fact record was inserted or updated. |
 
 ## Table Relationships
 
@@ -167,10 +170,26 @@ The prepared results are joined using `year_id` and `location_id`, with each dat
 
 ## Reporting Measures
 
-| Measure | Calculation | Interpretation |
-|---|---|---|
-| Budget gap | Total appropriation − total obligation | Difference between appropriated funds and recorded commitments. |
-| Utilization rate (%) | Total obligation ÷ total appropriation × 100 | Recorded commitments as a percentage of the appropriations budget. |
-| Appropriation per person | Regional appropriation ÷ regional population | Regional allocation relative to population size. |
+The current presentation focuses on three analytical questions:
 
-Calculations use matching years, locations and budget coverage. Overall utilization is calculated from total obligations and total appropriations rather than an average of individual rates.Appropriation per person uses population from the same year and geographic area. 
+| Focus | Measure | Calculation |
+|---|---|---|
+| AP1 — Distribution | Department or regional allocation | Sum appropriation_amount at the selected grain |
+| AP2 — Population | Obligations per resident | Regional obligations / same-year regional population |
+| AP2 — Population | Obligations share and population share | Each region's value / total across the same matched region set × 100 |
+| AP2 — Population | Share gap, percentage points | Obligations share − population share |
+| AP3 — Economic context | GRDP per capita vs. obligations per resident | Constant-2018-price GRDP measure compared with current-peso obligations per resident within a selected year |
+
+Aggregate each fact separately before joining by year and location. For regional comparisons, exclude Central Office and Nationwide. AP2/AP3 use region-year records with matching measures and positive population; their benchmark represents the matched regional set, not the full national government total.
+
+Budget gap and obligation/appropriation ratios can be derived for compatible records but are supplementary calculations, not the current AP2 focus. Avoid division by zero and preserve source value statuses.
+
+AP3 uses different price bases on its two axes. It describes within-year regional positioning, not a monetary ratio or proof of causation. The current scatter excludes NCR for readability; the base view retains it.
+
+## Related files
+
+- [Gold models and tests](../dbt/models/gold/schema.yml)
+- [Analytics setup](../analytics/readme.md)
+- [AP2 definitions](analytics/AP2_population_vs_spending_gap.md)
+- [AP3 definitions](analytics/AP3_grdp_vs_obligations_scatter.md)
+- [Dashboard lineage](../dashboard/PondoLens_Dashboard.md)

@@ -1,4 +1,3 @@
-%md
 # Regional Appropriations Silver - Documentation
 
 **Table:** `pondolens.dev_silver.regional_appropriations`

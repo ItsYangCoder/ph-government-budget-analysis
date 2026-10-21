@@ -27,7 +27,9 @@ This scatter plot compares regional economic output per person with recorded gov
 | `pondolens.dev_gold.dim_location` | `location_id`, `location_code`, `location`, `geographic_level` | Region identity |
 | `pondolens.dev_gold.dim_year` | `year_id`, `year` | Calendar year |
 
-**Base materialized view:** `pondolens.dev_gold.mv_grdp_spending_population`.
+**Base SQL view:** `pondolens.dev_gold.mv_grdp_spending_population`.
+
+Run [budget_vs_grdp.sql](../../analytics/q3_budget_and_indicators/budget_vs_grdp.sql) after the Gold build. It creates the base view and then the NCR-excluded view in order. Both are ordinary views despite their mv_ names.
 
 **Selected GRDP indicator:**
 - `indicator = 'grdp_per_capita'`
