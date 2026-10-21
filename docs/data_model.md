@@ -19,6 +19,26 @@ The model contains three fact tables and five dimension tables under `pondolens.
 
 
 
+## Model diagram
+
+![PondoLens fact constellation: three facts sharing year and location dimensions](images/constellation_schema.png)
+
+The image shows the relationships. Some labels and types in this export are older than the SQL, including `regional_budget_id`, the indicator measurement precision, and the geometry fields. Use the definitions below and the linked models for the current columns.
+
+## Why we use this approach
+
+Each fact answers a different question at a different level of detail:
+
+- Budget records describe a **year, location, and budget particular**.
+- Population records describe a **year, location, and age group**.
+- Indicator records describe a **year, location, and indicator definition**.
+
+Putting all of these into one table would repeat budget amounts for every age group and indicator. For example, joining one budget row to 18 age groups would repeat that amount 18 times. Separate facts keep those totals safe while shared dimensions let us compare the same year and location.
+
+This is a **fact constellation**, made of related stars. Each fact connects directly to its dimensions. `dim_year` and `dim_location` are shared; the other dimensions describe only the facts that need them. A single star with one fact would require discarding detail or changing what one row means.
+
+Appropriations and obligations stay together because they can share the same year, location, and particular. A full outer join keeps records that exist on only one side, with value statuses explaining missing amounts. Indicators use long form: `measurement` stores the value and `dim_indicator` identifies its meaning and unit.
+
 ## Dimension Tables
 
 ### `dim_year`
@@ -29,6 +49,7 @@ Provides the reporting year used by all three fact tables. Each year appears onc
 |---|---|
 | `year_id` — PK | Unique identifier for each year. |
 | `year` | Calendar year used for filtering and reporting. |
+| `processed_at` | Time the row was inserted. |
 
 ### `dim_location`
 
@@ -42,6 +63,7 @@ Provides the standardized geographic reference used across the model. Records wi
 | `geographic_level` | Classification used to distinguish regional, national and other allocation locations. |
 | `geometry_json` | Geographic boundary information for map visualizations. |
 | `psgc` | Source identifier labeled PSGC, retained as text. Its official code version is not independently verified. |
+| `processed_at` | Time the row was inserted or last changed. |
 
 ### `dim_particular`
 
@@ -52,6 +74,7 @@ Describes the departments, agencies and other budget entries represented in the 
 | `particular_id` — PK | Unique identifier for each category and particular combination. |
 | `category` | Classification of the budget entry. |
 | `particular` | Name of the department, agency or budget entry. |
+| `processed_at` | Time the registry row was inserted. |
 
 ### `dim_age_group`
 
@@ -62,7 +85,8 @@ Defines the age groups used in population reporting.
 | `age_group_id` — PK | Unique identifier for each age group. |
 | `age_group` | Display label, such as `0–4` or `85 and over`. |
 | `age_min` | Inclusive lower age limit. |
-| `age_max` | Inclusive upper age limit. |
+| `age_max` | Inclusive upper age limit; NULL for the open-ended oldest group. |
+| `processed_at` | Time the row was inserted or last changed. |
 
 ### `dim_indicator`
 
@@ -71,9 +95,10 @@ Defines the regional indicators and explains how their measurements should be in
 | Column | Description |
 |---|---|
 | `indicator_id` — PK | Unique identifier for each indicator definition. |
-| `indicator` | Indicator family, such as unemployment, GRDP, hospital or poverty. |
+| `indicator` | Indicator family, such as unemployment, GRDP per capita, health, poverty, education, or service access. |
 | `measure_type` | Specific measure represented by the indicator. |
-| `unit` | Unit of measurement, such as percent, PHP per person or count. |
+| `unit` | Unit of measurement, including its denominator or price basis. |
+| `processed_at` | Time the row was inserted or last changed. |
 
 
 ## Fact Tables
@@ -115,7 +140,8 @@ Stores population counts by year, location and age group. The population dataset
 | `year_id` — FK | References `dim_year`. |
 | `age_group_id` — FK | References `dim_age_group`. |
 | `location_id` — FK | References `dim_location`. |
-| `population_count` | Population measured in persons. |
+| `population_count` | Projected population measured in persons. |
+| `processed_at` | Time the row was inserted or last changed. |
 
 The source values are population projections and should be identified as projections in reports. Population counts must not be summed across years.
 
@@ -156,6 +182,24 @@ Each dimension has a **one-to-many** relationship with its related facts. One di
 
 For example, one location record can be referenced by multiple budget entries, population age groups and indicator measurements. The fact tables are compared through their shared year and location references.
 
+## Key types and checks
+
+| Table or field | Type in the current model |
+|---|---|
+| `dim_year.year_id`, `dim_age_group.age_group_id`, `dim_particular.particular_id`, `dim_indicator.indicator_id` | INT |
+| `dim_location.location_id` | BIGINT |
+| `fact_population.fact_population_id` | INT |
+| `fact_regional_expenditure.regional_expenditure_id`, `fact_regional_indicator.fact_indicator_id` | BIGINT |
+| `fact_population.population_count` | BIGINT |
+| Expenditure amounts | DECIMAL(20,4) |
+| Indicator `measurement` | DECIMAL(28,10) |
+| `geometry_json`, `psgc`, descriptions, and statuses | STRING |
+| `processed_at` | TIMESTAMP |
+
+PK/FK labels describe the intended relationships. SQL assertions and dbt tests check unique keys, required values, and dimension matches; the diagram does not imply database-enforced foreign keys.
+
+The current SQL uses BIGINT for `dim_location.location_id` and the population reference, but INT for the location references in the expenditure and indicator facts. Current IDs fit INT; aligning these types remains an implementation cleanup. This guide records the existing types rather than claiming they are already consistent.
+
 ## Combining the Fact Tables
 
 The fact tables store data at different levels of detail. For regional comparisons, each dataset is prepared at the year-and-location level before joining to prevent repeated values and inflated totals.
@@ -166,7 +210,7 @@ The fact tables store data at different levels of detail. For regional compariso
 | `fact_population` | Age group counts are added to get the total population for each year and location. | One row per year and location |
 | `fact_regional_indicator` | One indicator is selected for each year and location. | One row per available year and location |
 
-The prepared results are joined using `year_id` and `location_id`, with each dataset containing at most one row per key combination. Comparisons use compatible geographic boundaries across sources. Location codes identify matching records.
+The prepared results are joined using `year_id` and `location_id`, with each dataset containing at most one row per key combination. Check geographic boundaries before interpreting a comparison. Matching location codes identify records, but do not prove that the sources use the same historical boundaries.
 
 ## Reporting Measures
 
@@ -186,8 +230,28 @@ Budget gap and obligation/appropriation ratios can be derived for compatible rec
 
 AP3 uses different price bases on its two axes. It describes within-year regional positioning, not a monetary ratio or proof of causation. The current scatter excludes NCR for readability; the base view retains it.
 
+## Scope and interpretation limits
+
+The capstone focuses on annual regional comparisons for **2021–2025**. The model supports more indicators than the three current analytical questions use. It does not claim complete coverage for every region, indicator, and year.
+
+| Limit | How to use the results |
+|---|---|
+| Budget amounts describe allocations and commitments. | Do not describe obligations as cash paid, completed projects, or money received by residents. Project-level delivery and spending effectiveness are outside this model. |
+| Population is projected, and sources use different regional coverage. | Use the same matched region set for both sides of a comparison. Do not invent NIR population from a code mapping. |
+| NIR and other boundary changes affect historical comparisons. | Review dataset-specific mapping notes. A shared region key does not make all historical boundaries equivalent. |
+| Some measurements are unavailable or have reliability markers. | Preserve NULLs and statuses. Check the Silver guide before ranking or interpreting a reported zero. |
+| GRDP and budget amounts use different price bases in AP3. | Compare within-year patterns; do not treat the axes as a monetary ratio or an inflation-adjusted spending trend. |
+| Not every source detail is carried into Gold. | Follow `source_table` to the Silver guide for release status, reliability, footnotes, and transformations. Gold is not a full source archive. |
+| Original GeoJSON publisher, license, CRS, and effective date are not verified; the 2025 poverty reference period also needs confirmation. | Keep these source limitations visible. Map checks validate structure, not official boundary accuracy. |
+| Dimensions describe current standardized definitions. | The model does not preserve a full history of dimension changes or link indicators to individual agency programs. |
+
+Within the capstone timeline, the reporting focus is distribution, population context, and GRDP context. These results support further investigation; they do not prove unfair allocation, corruption, or a causal effect of spending on development.
+
 ## Related files
 
+- [Data sources](data_sources.md)
+- [Silver dataset guides](../README.md#silver-documentation)
+- [Gold SQL models](../dbt/models/gold)
 - [Gold models and tests](../dbt/models/gold/schema.yml)
 - [Analytics setup](../analytics/readme.md)
 - [AP2 definitions](analytics/AP2_population_vs_spending_gap.md)
