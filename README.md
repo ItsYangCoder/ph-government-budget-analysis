@@ -6,13 +6,27 @@ PondoLens is an end-to-end data engineering capstone developed through the FTW F
 
 The main analytical scope is **2021–2025**. Coverage varies by dataset. Missing years, source markers, and changes in regional coverage are documented rather than replaced with assumed values.
 
-## Analytical focus
+## Analytics
 
-- Identify the **top five highest and lowest budget allocations** across agencies or regions for a selected year.
-- Compare regional spending with economic, employment, poverty, education, and health indicators where compatible data is available.
-- Use regional boundaries to display geographic patterns in a choropleth map.
+- **AP 1:** Where does the money go across departments and regions?
+- **AP 2:** How does regional government spending compare to population?
+- **AP 3:** How does regional government spending compare with GRDP per capita?
 
-The repository also retains appropriation and obligation measures for compatible comparisons. Their presence does not mean every available measure is part of the final presentation. An appropriation–obligation difference alone does not explain its cause or establish misuse of funds. Indicator comparisons show associations, not proof that spending caused an outcome.
+Budget allocation uses appropriations. Spending comparisons use obligations, which are commitments and are not the same as cash payments.
+
+### Data sources and comparison
+
+| Data | Official source | How it is used |
+|---|---|---|
+| Regional budget and obligations | [DBM — Budget of Expenditures and Sources of Financing](https://www.dbm.gov.ph/index.php/test/1205-budget-of-expenditures-and-sources-of-financing) | Compare amounts by department, region, and year. |
+| Population projections | [PSA — 2020 Census-Based Population Projections](https://psa.gov.ph/content/calabarzon-retain-top-spot-most-populous-region-until-2035) | Compare regional spending with projected population for the same year. |
+| GRDP per capita | [PSA — GRDP tables](https://psa.gov.ph/statistics/grdp/tables) | Compare regional spending with economic output per person for the same year. |
+
+Source files are staged in Google Drive before ingestion. File names and coverage are recorded in the [dataset documentation](profiling/README.md#dataset-index).
+
+Match records by year and standard region code. Total the budget once per region-year before joining population or GRDP data. Use total population only, keep GRDP price bases separate, and exclude national totals, Central Office, and Nationwide from regional comparisons. Check historical boundary differences before comparing regions. Missing values stay missing.
+
+These comparisons show patterns; they do not prove that spending caused an economic outcome.
 
 ## Start here
 
