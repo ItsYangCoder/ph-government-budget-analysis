@@ -1,0 +1,93 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: pondolens
+    schema: dev_bronze
+    description: >
+      Raw datasets ingested from Google Drive by the PondoLens
+      Python ingestion pipeline. Source values and lineage are preserved.
+
+    tables:
+      - name: agency_actuals
+        description: Agency-level actual expenditure records.
+
+      - name: regional_appropriation
+        description: Regional appropriation records from GAA source files.
+
+      - name: regional_obligations
+        description: Regional obligation records.
+
+      - name: population
+        description: Population projection records.
+
+      - name: unemployment_rate
+        description: Unemployment rate records.
+
+      - name: poverty_incidence
+        description: Poverty incidence records.
+
+      - name: service_access
+        description: Drinking water, electricity, and internet access records.
+
+      - name: grdp_per_capita
+        description: GRDP per capita records.
+
+      - name: completion_rate
+        description: >
+          Education completion rates by geolocation, education level,
+          and sex. Source year labels 2000–2026 are separate string
+          columns. Numeric coverage for the project scope is 2021–2024,
+          with NIR gaps in 2021–2023 and no numeric values for 2025.
+
+        columns:
+          - name: indicator
+            description: Original indicator label with its footnote reference.
+
+          - name: geolocation
+            description: >
+              Original national or regional label, including hierarchy
+              dots and footnote references.
+
+          - name: level_of_education
+            description: >
+              Elementary, junior high school, or senior high school,
+              preserving the original source label.
+
+          - name: sex
+            description: Both Sexes, Female, or Male.
+
+          - name: c_2021
+            description: Completion percentage for source year label 2021.
+
+          - name: c_2022
+            description: Completion percentage for source year label 2022.
+
+          - name: c_2023
+            description: Completion percentage for source year label 2023.
+
+          - name: c_2024
+            description: Completion percentage for source year label 2024.
+
+          - name: c_2025
+            description: >
+              Source year label 2025. All 171 observations contain
+              the source marker '...' in the profiled snapshot.
+
+          - name: _rescued_data
+            description: Payload for records rescued during ingestion.
+
+          - name: _source_file
+            description: Source path relative to the configured Drive folder.
+
+          - name: _run_id
+            description: Ingestion execution identifier.
+
+          - name: _ingested_at
+            description: Timestamp when the record was ingested.
+
+      - name: region_boundaries
+        description: Regional geographic boundary records.
+
+      - name: hospital
+        description: Regional DOH-regulated hospital records.

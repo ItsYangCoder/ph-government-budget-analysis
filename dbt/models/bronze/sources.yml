@@ -1,0 +1,609 @@
+version: 2
+sources:
+- name: bronze
+  database: '{{ var(''pondolens_catalog'') }}'
+  schema: '{{ var(''bronze_schema'') }}'
+  tables:
+  - name: agency_actuals
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: fiscal_year
+      description: "Fiscal year in the 2021\u20132023 layout."
+    - name: statement_page
+      description: Source statement page label from the earlier layout.
+    - name: row_no
+      description: Row reference in the earlier extracted layout; not an agency ID.
+    - name: particulars
+      description: "Agency, section, or sub-item label. Blank for the 2024\u20132025 Grand Total rows."
+    - name: row_group
+      description: Source hierarchy group in the earlier layout.
+    - name: row_type
+      description: Source row classification. Earlier values include Agency, Section total, Sub-item; later values include
+        agency_total, category_total, line_item, sub_line_item.
+    - name: column_group
+      description: Budget stage or rate label in the earlier layout.
+    - name: class
+      description: 'Earlier expense class: PS, MOOE, FINEX, CO, Total, or N/A. CO means capital outlays here.'
+    - name: value
+      description: Earlier extracted measure. Interpret using unit and column_group.
+    - name: value_as_shown
+      description: Earlier source display text; keep it when interpreting zeros, dashes, and parentheses.
+    - name: unit
+      description: 'Earlier measure unit: percent or thousand pesos.'
+    - name: footnote
+      description: Earlier source footnote text.
+    - name: source_sheet
+      description: Earlier source sheet reference.
+    - name: source_cell
+      description: "Earlier source cell reference. Populated for 2021\u20132023; absent for 2024\u20132025."
+    - name: source_name
+      description: Later source workbook name.
+    - name: source_page
+      description: 'Later workbook page/sheet label: SUMMARY in 2024 and SUM in 2025.'
+    - name: source_row
+      description: Later source row reference; not a business identifier.
+    - name: year
+      description: "Fiscal year in the 2024\u20132025 layout."
+    - name: category
+      description: Later source hierarchy/category label, including Grand Total.
+    - name: budget_stage
+      description: Later budget stage such as Appropriations, Adjustments, Allotments, or Disbursements.
+    - name: expense_class
+      description: Later expense class. Blank is expected for measures reported without class breakdown.
+    - name: unit_amount
+      description: 'Later monetary unit: thousand pesos.'
+    - name: amount
+      description: Later monetary measure as extracted. Includes decimals, dash markers, and parenthesized negative amounts.
+    - name: percent_type
+      description: Later rate label identifying the numerator/denominator relationship.
+    - name: percent_amount
+      description: 'Later rate display text, such as 83.5% or #DIV/0!. This is separate from monetary amounts.'
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null:
+          config:
+            enabled: '{{ var(''include_agency_actuals'', false) }}'
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null:
+          config:
+            enabled: '{{ var(''include_agency_actuals'', false) }}'
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null:
+          config:
+            enabled: '{{ var(''include_agency_actuals'', false) }}'
+    data_tests:
+    - nonempty:
+        config:
+          enabled: '{{ var(''include_agency_actuals'', false) }}'
+    config:
+      enabled: '{{ var(''include_agency_actuals'', false) }}'
+  - name: completion_rate
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: indicator
+      description: Source indicator label including footnote reference. | 4.1.2 Completion rate 1/`; no null/blank values
+        in profiled rows.
+    - name: geolocation
+      description: Source national or regional label. Hierarchy dots and footnote references are retained. | PHILIPPINES`,
+        `..Region IV-A 2/`, `..Negros Island Region (NIR)`; 19 distinct labels.
+    - name: level_of_education
+      description: Education level for the reported completion percentage. | Elementary`, `Secondary (Junior High School)`,
+        `Secondary (Senior High School)  4/`.
+    - name: sex
+      description: Source sex breakdown. Both Sexes is an aggregate category. | Both Sexes`, `Female`, `Male`.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    - name: c_2021
+      description: Completion percentage for source year label 2021.
+    - name: c_2022
+      description: Completion percentage for source year label 2022.
+    - name: c_2023
+      description: Completion percentage for source year label 2023.
+    - name: c_2024
+      description: Completion percentage for source year label 2024.
+    - name: c_2025
+      description: 'Source year label 2025. All 171 observations contain the source marker ''...'' in the profiled snapshot.
+
+        '
+    data_tests:
+    - nonempty
+  - name: grdp_per_capita
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: source_name
+      description: 'Source workbook/report label. Observed: `2018-2025 GRDP_Reg_(with NIR as of April 2026)`.'
+    - name: source_page
+      description: Extracted worksheet label; observed `Capita`.
+    - name: region_id
+      description: Source geographic code, such as NCR, IV-A, or NIR. Blank for Philippines and MIMAROPA; resolve using the
+        accompanying name.
+    - name: region
+      description: Source geography name; includes Philippines and regional names.
+    - name: year
+      description: "Source year label. Parse and validate before applying the 2021\u20132025 project filter."
+    - name: grdp_per_capita_amount
+      description: Decimal measure text in Philippine pesos per person. Preserve original text in Bronze.
+    - name: price_basis
+      description: At Current Prices` or `At Constant 2018 Prices`. These are separate observations.
+    - name: unit
+      description: Observed `Philippine pesos per person`. No thousand-peso scaling applies.
+    - name: geographic_level
+      description: 'region` or `country`. Proposed Silver naming: `region` or `national`.'
+    - name: source_table
+      description: 'Source table reference: Table 2.1 for current prices; Table 2.2 for constant prices.'
+    - name: source_file
+      description: Source-supplied file/report identifier. Distinct from pipeline `_source_file`.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+  - name: hospital
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: year
+      description: "Year of the hospital count | 2021\u20132024 in the current dataset | No nulls observed | Cast to INT;\
+        \ validate allowed years"
+    - name: region_name
+      description: Historical source region name | One of the 17 source regions | No nulls observed | Trim and map through
+        the shared region crosswalk
+    - name: hospital_type
+      description: Ownership/category of regulated hospitals | Government in this Bronze table | Government in all 68 rows;
+        no nulls observed | Trim and standardize to Government
+    - name: regulated_hospital_count
+      description: Number of regulated hospitals for the region and year | Whole number greater than or equal to zero | No
+        nulls, nonnumeric values, or negative values observed | Cast to INT; reject invalid values
+    - name: unit
+      description: Unit for the count | hospitals | hospitals in all 68 rows; no nulls observed | Trim and standardize to
+        hospitals
+    - name: source_agency
+      description: Agency responsible for the source data | DOH Health Facilities and Services Regulatory Bureau | Source
+        lineage field | Preserve
+    - name: source_publication
+      description: Publication containing the source table | 2025 Philippine Statistical Yearbook | Source lineage field |
+        Preserve
+    - name: source_table
+      description: Table identifier in the publication | 9.18 | Source lineage field | Preserve
+    - name: source_page
+      description: Page locator in the publication | 9-28 | Source lineage field | Preserve
+    - name: source_url
+      description: Link to the source publication | Valid source URL | Source lineage field | Preserve
+    - name: coverage_note
+      description: Note about source coverage or extraction | Retain the source note as recorded | Source lineage field |
+        Preserve
+    - name: _rescued_data
+      description: 'Rescue payload for parsing exceptions. No rescued records were observed.
+
+        '
+    - name: _drive_file_id
+      description: Google Drive source file identifier.
+    - name: _source_file
+      description: Source path relative to the configured Drive folder.
+    - name: _landing_file
+      description: Saved source-file path in the landing volume.
+    - name: _source_modified_at
+      description: Source modification timestamp stored as text.
+    - name: _source_sheet
+      description: Source sheet name; null is expected for CSV input.
+    - name: _content_hash
+      description: Source-file content hash recorded by ingestion.
+    - name: _header_map
+      description: JSON mapping of normalized to original column names.
+    - name: _dataset_hash
+      description: Dataset fingerprint used to detect unchanged input.
+    - name: _run_id
+      description: Ingestion execution identifier.
+    - name: _ingested_at
+      description: Ingestion timestamp.
+    data_tests:
+    - nonempty
+  - name: population
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+  - name: poverty_incidence
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: source_name
+      description: Raw source source name.
+    - name: source_page
+      description: Raw source source page.
+    - name: source_row
+      description: Raw source source row.
+    - name: year
+      description: Raw source year.
+    - name: region
+      description: Raw source region.
+    - name: region_name
+      description: Raw source region name.
+    - name: province
+      description: Raw source province.
+    - name: annual_poverty_threshold_per_capita
+      description: Raw source annual poverty threshold per capita.
+    - name: reference_unit
+      description: Raw source reference unit.
+    - name: poverty_incidence_estimate
+      description: Raw source poverty incidence estimate.
+    - name: poverty_incidence_coeff_var
+      description: Raw source poverty incidence coeff var.
+    - name: poverty_incidence_standard_error
+      description: Raw source poverty incidence standard error.
+    - name: poverty_incidence_confidence_lower
+      description: Raw source poverty incidence confidence lower.
+    - name: poverty_incidence_confidence_upper
+      description: Raw source poverty incidence confidence upper.
+    - name: notes
+      description: Raw source notes.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+  - name: region_boundaries
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: adm1_psgc
+      description: Source regional identifier labeled PSGC. Keep as text and separate from project region_code. Official code/version
+        verification is pending.
+    - name: adm1_en
+      description: Source region name used for crosswalk matching.
+    - name: geometry_json
+      description: GeoJSON shape used to draw the region on a choropleth map. Contains Polygon or MultiPolygon coordinates.
+        Keep its nested structure intact.
+    - name: properties_json
+      description: Feature attributes, including adm1_psgc, adm1_en, and geo_level.
+    - name: feature_json
+      description: Complete GeoJSON Feature containing the region's geometry and properties.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+  - name: regional_appropriations
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: source_name
+      description: Raw source source name.
+    - name: source_page
+      description: Raw source source page.
+    - name: price_basis
+      description: Raw source price basis.
+    - name: year
+      description: Raw source year.
+    - name: category
+      description: Raw source category.
+    - name: particulars
+      description: Raw source particulars.
+    - name: regions
+      description: Raw source regions.
+    - name: expenditure_amount
+      description: Raw source expenditure amount.
+    - name: unit_amount
+      description: Raw source unit amount.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+    identifier: regional_appropriation
+  - name: regional_obligations
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: source_name
+      description: Source document or file name recorded by extraction. Use it with source_page to trace a value.
+    - name: source_page
+      description: Source page reference. Keep the original text in Bronze.
+    - name: price_basis
+      description: Source series label identifying the reported measure, such as actual obligations. Despite its name, do
+        not assume this is an inflation-adjustment base year. Preserve the exact label.
+    - name: year
+      description: "Year the reported amount relates to. The profiling scope is 2021\u20132025. It is separate from the source\
+        \ publication year."
+    - name: category
+      description: Source budget grouping, such as DEPARTMENTS, SPECIAL PURPOSE FUNDS, AUTOMATIC APPROPRIATIONS, or GRAND
+        TOTAL. Categories may change across years.
+    - name: particulars
+      description: Source agency, fund, or aggregate label. The profiling SQL treats `All` as a category subtotal when the
+        category is not GRAND TOTAL.
+    - name: regions
+      description: Source location label. Includes region labels, Nationwide, Central Office, and Total. This is not yet the
+        canonical project region_code.
+    - name: expenditure_amount
+      description: Reported monetary amount as extracted. Keep numeric text, dash markers, and blanks unchanged in Bronze.
+        Interpret it together with unit_amount.
+    - name: unit_amount
+      description: Source monetary unit. The supplied profiling SQL expects thousand pesos; confirm the observed labels when
+        running it.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty
+  - name: service_access
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns: []
+    data_tests:
+    - nonempty:
+        config: {}
+  - name: unemployment_rate
+    description: Raw ingested source records. Keep source markers, missing values and lineage unchanged.
+    columns:
+    - name: source_name
+      description: Raw source source name.
+    - name: source_page
+      description: Raw source source page.
+    - name: region
+      description: Raw source region.
+    - name: year
+      description: Raw source year.
+    - name: unit
+      description: Raw source unit.
+    - name: geographic_level
+      description: Raw source geographic level.
+    - name: source_table
+      description: Raw source source table.
+    - name: source_file
+      description: Raw source source file.
+    - name: geographic_name
+      description: Raw source geographic name.
+    - name: indicator
+      description: Raw source indicator.
+    - name: value
+      description: Raw source value.
+    - name: standard_error
+      description: Raw source standard error.
+    - name: coefficient_of_variation_percent
+      description: Raw source coefficient of variation percent.
+    - name: estimate_status
+      description: Raw source estimate status.
+    - name: frequency
+      description: Raw source frequency.
+    - name: table_version
+      description: Raw source table version.
+    - name: source_cell
+      description: Raw source source cell.
+    - name: value_source_marker
+      description: Raw source value source marker.
+    - name: standard_error_source_marker
+      description: Raw source standard error source marker.
+    - name: coefficient_of_variation_source_marker
+      description: Raw source coefficient of variation source marker.
+    - name: comparison_year
+      description: Raw source comparison year.
+    - name: change_from_comparison_year
+      description: Raw source change from comparison year.
+    - name: change_unit
+      description: Raw source change unit.
+    - name: change_source_marker
+      description: Raw source change source marker.
+    - name: _rescued_data
+      description: Ingestion rescue payload. Review nonblank values without changing raw records.
+    - name: _drive_file_id
+      description: 'Ingestion lineage: drive file id.'
+    - name: _source_file
+      description: 'Ingestion lineage: source file.'
+      data_tests:
+      - not_null
+    - name: _landing_file
+      description: 'Ingestion lineage: landing file.'
+    - name: _source_modified_at
+      description: Source file modification time; not the observation reference date.
+    - name: _source_sheet
+      description: Selected sheet when applicable; NULL is valid for non-spreadsheet sources.
+    - name: _content_hash
+      description: 'Ingestion lineage: content hash.'
+    - name: _header_map
+      description: 'Ingestion lineage: header map.'
+    - name: _dataset_hash
+      description: 'Ingestion lineage: dataset hash.'
+    - name: _run_id
+      description: 'Ingestion lineage: run id.'
+      data_tests:
+      - not_null
+    - name: _ingested_at
+      description: Timestamp when ingestion recorded the row.
+      data_tests:
+      - not_null
+    data_tests:
+    - nonempty

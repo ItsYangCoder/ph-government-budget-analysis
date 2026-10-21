@@ -1,0 +1,277 @@
+version: 2
+models:
+- name: dim_year
+  description: 'Existing gold table. Grain: year.'
+  columns:
+  - name: year_id
+    description: Year id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year
+    description: Reference year of the observation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year
+- name: dim_location
+  description: 'Existing gold table. Grain: location_code.'
+  columns:
+  - name: location_id
+    description: Location id.
+    data_tests:
+    - not_null
+    - unique
+  - name: location_code
+    description: Location code.
+    data_tests:
+    - not_null
+  - name: location
+    description: Location.
+    data_tests:
+    - not_null
+  - name: geographic_level
+    description: Geographic level.
+    data_tests:
+    - not_null
+  - name: geometry_json
+    description: Serialized GeoJSON geometry used to draw choropleth regions; keep Polygon and MultiPolygon structure.
+  - name: psgc
+    description: Source boundary identifier retained as text; official code/version verification is pending.
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - location_code
+- name: dim_age_group
+  description: 'Existing gold table. Grain: age_group.'
+  columns:
+  - name: age_group_id
+    description: Age group id.
+    data_tests:
+    - not_null
+    - unique
+  - name: age_group
+    description: Age group.
+    data_tests:
+    - not_null
+  - name: age_min
+    description: Lower age bound; NULL may mean an all-ages group.
+  - name: age_max
+    description: Upper age bound; NULL may mean an open-ended or all-ages group.
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - age_group
+- name: dim_particular
+  description: "Existing gold table. Grain: category \xD7 particular."
+  columns:
+  - name: particular_id
+    description: Particular id.
+    data_tests:
+    - not_null
+    - unique
+  - name: category
+    description: Category.
+    data_tests:
+    - not_null
+  - name: particular
+    description: Particular.
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - category
+        - particular
+- name: dim_indicator
+  description: 'Existing gold table. Grain: measure_type.'
+  columns:
+  - name: indicator_id
+    description: Indicator id.
+    data_tests:
+    - not_null
+    - unique
+  - name: indicator
+    description: Indicator.
+    data_tests:
+    - not_null
+  - name: measure_type
+    description: Measure type.
+    data_tests:
+    - not_null
+  - name: unit
+    description: Unit.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - measure_type
+- name: fact_population
+  description: "Existing gold table. Grain: year_id \xD7 location_id \xD7 age_group_id."
+  columns:
+  - name: fact_population_id
+    description: Fact population id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year_id
+    description: Year id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_year')
+          field: year_id
+  - name: location_id
+    description: Location id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_location')
+          field: location_id
+  - name: age_group_id
+    description: Age group id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_age_group')
+          field: age_group_id
+  - name: population_count
+    description: Population count for the linked year, location and age group. See the population grain warning in README.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year_id
+        - location_id
+        - age_group_id
+- name: fact_regional_expenditure
+  description: "Existing gold table. Grain: year_id \xD7 location_id \xD7 particular_id."
+  columns:
+  - name: regional_expenditure_id
+    description: Regional expenditure id.
+    data_tests:
+    - not_null
+    - unique
+  - name: year_id
+    description: Year id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_year')
+          field: year_id
+  - name: location_id
+    description: Location id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_location')
+          field: location_id
+  - name: particular_id
+    description: Particular id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_particular')
+          field: particular_id
+  - name: appropriation_amount
+    description: Appropriation amount retained by the existing transformation; confirm a common currency scale before comparisons.
+  - name: appropriation_value_status
+    description: Appropriation value status.
+    data_tests:
+    - not_null
+  - name: obligation_amount
+    description: Obligation amount.
+  - name: obligation_value_status
+    description: Obligation value status.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - year_id
+        - location_id
+        - particular_id
+- name: fact_regional_indicator
+  description: "Existing gold table. Grain: location_id \xD7 year_id \xD7 indicator_id."
+  columns:
+  - name: fact_indicator_id
+    description: Fact indicator id.
+    data_tests:
+    - not_null
+    - unique
+  - name: location_id
+    description: Location id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_location')
+          field: location_id
+  - name: year_id
+    description: Year id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_year')
+          field: year_id
+  - name: indicator_id
+    description: Indicator id.
+    data_tests:
+    - not_null
+    - relationships:
+        arguments:
+          to: ref('dim_indicator')
+          field: indicator_id
+  - name: measurement
+    description: Indicator value. Interpret with dim_indicator.unit and value_status; do not sum across indicators.
+  - name: value_status
+    description: Status recorded by the transformation; check it before using the numeric value.
+    data_tests:
+    - not_null
+  - name: source_table
+    description: Source table.
+    data_tests:
+    - not_null
+  - name: processed_at
+    description: Timestamp recorded by the Silver or Gold transformation.
+    data_tests:
+    - not_null
+  data_tests:
+  - nonempty
+  - unique_grain:
+      arguments:
+        columns:
+        - location_id
+        - year_id
+        - indicator_id

@@ -1,0 +1,98 @@
+version: 2
+
+sources:
+  - name: bronze_hospital
+    database: pondolens
+    schema: dev_bronze
+    description: Hospital source data loaded from Google Drive.
+
+    tables:
+      - name: hospital
+        description: >
+          Regional government regulated hospital counts.
+          The profiled snapshot contains 68 records covering
+          17 historical source regions from 2021 to 2024.
+          Private hospitals, total hospitals, and separate NIR
+          records are absent. National totals are not yet reconciled.
+
+        columns:
+          - name: year
+            description: >
+              Year of the hospital count, stored as text.
+              Observed coverage is 2021–2024.
+
+          - name: region_name
+            description: >
+              Original region label using the source's
+              17-region grouping.
+
+          - name: hospital_type
+            description: >
+              Hospital category. All 68 profiled records
+              contain Government.
+
+          - name: regulated_hospital_count
+            description: >
+              Number of government regulated hospitals in the
+              region and year, stored as text.
+
+          - name: unit
+            description: Measurement unit; hospitals.
+
+          - name: source_agency
+            description: >
+              Department of Health — Health Facilities
+              and Services Regulatory Bureau.
+
+          - name: source_publication
+            description: Source publication; 2025 Philippine Statistical Yearbook.
+
+          - name: source_table
+            description: Source table identifier; 9.18.
+
+          - name: source_page
+            description: >
+              Source page locator as ingested. Sample records contain
+              Sep-28, while the dictionary lists 9-28.
+              Requires verification against the original publication.
+
+          - name: source_url
+            description: URL of the source publication.
+
+          - name: coverage_note
+            description: Original note describing geographic coverage.
+
+          - name: _rescued_data
+            description: >
+              Rescue payload for parsing exceptions.
+              No rescued records were observed.
+
+          - name: _drive_file_id
+            description: Google Drive source file identifier.
+
+          - name: _source_file
+            description: Source path relative to the configured Drive folder.
+
+          - name: _landing_file
+            description: Saved source-file path in the landing volume.
+
+          - name: _source_modified_at
+            description: Source modification timestamp stored as text.
+
+          - name: _source_sheet
+            description: Source sheet name; null is expected for CSV input.
+
+          - name: _content_hash
+            description: Source-file content hash recorded by ingestion.
+
+          - name: _header_map
+            description: JSON mapping of normalized to original column names.
+
+          - name: _dataset_hash
+            description: Dataset fingerprint used to detect unchanged input.
+
+          - name: _run_id
+            description: Ingestion execution identifier.
+
+          - name: _ingested_at
+            description: Ingestion timestamp.

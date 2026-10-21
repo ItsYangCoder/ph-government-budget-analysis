@@ -1,0 +1,15 @@
+# SQL-to-dbt migration decisions
+
+All supplied Silver and Gold transformations are executable dbt model nodes. Notebook SQL cells were exported to `.sql`. `ref()` connects Silver/Gold dependencies and `source()` connects Bronze. Original files remain under `legacy_sql/original_models` and are not executed.
+
+The `pondolens_script` materialization runs the existing validated DDL, staging views, assertions and MERGE statements in order on one adapter connection. It fetches every result so lazy assertions cannot be skipped. It stops at the first error. This is a deliberate migration bridge, not a claim that the scripts are conventional SELECT-only dbt models. Full refresh is blocked to avoid accidentally resetting Silver/fact IDs. Statements are not one transaction; completed writes may remain if a later assertion fails. Re-run after correcting the cause; keep one concurrent writer and do not run seed/reset commands.
+
+Gold dim_year, dim_location, dim_age_group and fact_population now retain existing IDs through natural-key MERGE, allocating only new IDs above the current maximum. This replaces the supplied CREATE OR REPLACE behavior, which recalculated IDs. Dimension members are retained when no longer observed; fact_population synchronizes to the validated current source snapshot. Empty or duplicate source stages fail before target writes. The original dimension ID expressions supply the first-run physical types but do not overwrite existing IDs. Build the whole graph after input changes.
+
+Crosswalk: new-schema CREATE, alias preparation and MERGE were kept. The old-schema BEGIN/IF column migration was removed from the recurring model to avoid splitting a scripting block; the expected seven-column schema is checked by usage/tests. Existing tables with the older schema need an explicit one-off migration. Shared validity years and NIR exceptions were not broadened.
+
+Population correction to earlier review: Silver explicitly filters sex = 'Both'. Gold now also explicitly filters 'Both', protecting its year/location/age-group grain if future Silver rows include other sexes. No new sex dimension or invented counts were added. Age totals and detail still overlap and must be filtered deliberately in analytics.
+
+Service access is included because the supplied Gold models require it. Agency actuals is not a transformation in this folder and remains an optional Bronze source. No ingestion pipeline or missing monitoring tables are invented. Bronze must already exist.
+
+Pre-existing assertions, historical mapping exceptions, marker rules and schema maintenance remain part of the scripts. The regional expenditure model no longer creates or reads a legacy backup table or automatically deletes retired particular 30051 rows. If those rows exist, validation stops before the fact MERGE and they require a separate migration. Review those behaviors before running against shared data. Test first with the isolated schema overrides in README. Connected validation is required before production acceptance.
