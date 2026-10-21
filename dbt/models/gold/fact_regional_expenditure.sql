@@ -373,7 +373,7 @@ CREATE TABLE IF NOT EXISTS
 {{ this }} (
     regional_expenditure_id BIGINT NOT NULL,
     year_id INT NOT NULL,
-    location_id INT NOT NULL,
+    location_id BIGINT NOT NULL,
     particular_id INT NOT NULL,
     appropriation_amount DECIMAL(20, 4),
     appropriation_value_status STRING NOT NULL,

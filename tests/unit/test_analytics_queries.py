@@ -3,12 +3,14 @@
 Databricks syntax is parsed/transpiled by sqlglot; this is not a warehouse test.
 """
 import sqlite3
+import pytest
 from pathlib import Path
 import sqlglot
 from sqlglot import exp
 
 
-def test_ap2_ap3_region_year_aggregation():
+@pytest.mark.parametrize("invalid_group", ["null", "missing", "duplicate", "negative"])
+def test_ap2_ap3_region_year_aggregation(invalid_group):
     c=sqlite3.connect(':memory:')
     c.create_function('TRY_DIVIDE',2,lambda x,y: x/y if x is not None and y else None)
     c.executescript('''
@@ -26,8 +28,18 @@ def test_ap2_ap3_region_year_aggregation():
     CREATE TABLE fact_regional_indicator(year_id INT,location_id INT,indicator_id INT,measurement INT);
     INSERT INTO fact_regional_indicator VALUES(1,1,1,100000),(1,2,1,90000),(1,1,2,150000),(1,3,1,80000);
     ''')
+    if invalid_group == 'missing':
+        c.execute('DELETE FROM fact_population WHERE location_id=3 AND age_group_id=2')
+    elif invalid_group == 'duplicate':
+        c.execute('UPDATE fact_population SET population_count=100 WHERE location_id=3')
+        c.execute('INSERT INTO fact_population VALUES(1,3,1,100)')
+    elif invalid_group == 'negative':
+        c.execute('UPDATE fact_population SET population_count=-1 WHERE location_id=3 AND age_group_id=2')
+    # All-age totals must not be added to the detail age bins.
+    c.execute('INSERT INTO dim_age_group VALUES(99,NULL,NULL)')
+    c.execute('INSERT INTO fact_population VALUES(1,1,99,300)')
     def query(path,create=False):
-     tree=sqlglot.parse((Path(__file__).resolve().parents[2] / path).read_text(),read='databricks')[0]
+     tree=sqlglot.parse((Path(__file__).resolve().parents[2] / path).read_text().removeprefix('%sql'),read='databricks')[0]
      if create:tree=tree.expression
      for t in tree.find_all(exp.Table):t.set('db',None);t.set('catalog',None)
      return c.execute(tree.sql(dialect='sqlite')).fetchall()
@@ -37,3 +49,5 @@ def test_ap2_ap3_region_year_aggregation():
     r=query('analytics/q3_budget_and_indicators/budget_vs_grdp.sql',True)
     assert len(r)==2,r
     assert sorted((x[2],x[4],x[5],x[6],x[7]) for x in r)==[('I',100000,2,300,600),('II',90000,1,100,100)],r
+    r=query('analytics/q2_budget_and_population/population_budget_share_gap.sql',True)
+    assert sorted((x[2],x[4]) for x in r)==[('I',300),('II',100)],r

@@ -465,7 +465,7 @@ FROM (
 CREATE TABLE IF NOT EXISTS
 {{ this }} (
     fact_indicator_id BIGINT NOT NULL,
-    location_id INT NOT NULL,
+    location_id BIGINT NOT NULL,
     year_id INT NOT NULL,
     indicator_id INT NOT NULL,
     measurement DECIMAL(28, 10),

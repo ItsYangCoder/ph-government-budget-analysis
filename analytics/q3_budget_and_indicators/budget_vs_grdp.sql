@@ -7,7 +7,11 @@ WITH population AS (
     JOIN pondolens.dev_gold.dim_age_group a ON f.age_group_id = a.age_group_id
     WHERE a.age_min IS NOT NULL
     GROUP BY f.year_id, f.location_id
-    HAVING COUNT(*) = COUNT(f.population_count) AND SUM(f.population_count) > 0
+    HAVING COUNT(*) = (SELECT COUNT(*) FROM pondolens.dev_gold.dim_age_group WHERE age_min IS NOT NULL)
+     AND COUNT(DISTINCT f.age_group_id) = COUNT(*)
+     AND COUNT(*) = COUNT(f.population_count)
+     AND MIN(f.population_count) >= 0
+     AND SUM(f.population_count) > 0
 ), obligations AS (
     SELECT f.year_id, f.location_id, SUM(f.obligation_amount) AS total_obligations
     FROM pondolens.dev_gold.fact_regional_expenditure f
