@@ -2,7 +2,7 @@
 
 PondoLens transforms raw Philippine government budget, population and development data into structured datasets for analyzing government budget and spending. The model supports reporting on where funds are appropriated, how appropriations compare with obligations, and how regional budgets relate to population and economic csonditions.
 
-The reporting scope covers **2021–2025**, depending on the years available in each source. Data passes through Bronze for raw ingestion, Silver for cleaning and standardization, and Gold for analysis. This document describes the Gold data model.
+The reporting scope covers **2021–2025**. Data passes through Bronze for raw ingestion, Silver for cleaning and standardization, and Gold for analysis. This document describes the Gold data model.
 
 ## Model Design
 
