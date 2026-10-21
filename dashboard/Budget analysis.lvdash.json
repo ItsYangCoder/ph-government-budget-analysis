@@ -1,0 +1,581 @@
+{
+  "datasets": [
+    {
+      "name": "35560c26",
+      "displayName": "mv_population_spending_alignment",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.mv_population_spending_alignment",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "fa7c50cc",
+      "displayName": "mv_grdp_spending_population",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.mv_grdp_spending_population",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "d7bce2f1",
+      "displayName": "mv_grdp_spending_population_without_ncr",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.mv_grdp_spending_population_without_ncr",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "name": "a8aea158",
+      "displayName": "population x spending",
+      "layout": [
+        {
+          "widget": {
+            "name": "population-share-vs-spending-share",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "35560c26",
+                  "fields": [
+                    {
+                      "name": "region_code",
+                      "expression": "`region_code`"
+                    },
+                    {
+                      "name": "spending_share_pct",
+                      "expression": "`spending_share_pct`"
+                    },
+                    {
+                      "name": "population_share_pct",
+                      "expression": "`population_share_pct`"
+                    },
+                    {
+                      "name": "share_gap_pp",
+                      "expression": "`share_gap_pp`"
+                    },
+                    {
+                      "name": "spending_per_person_php",
+                      "expression": "`spending_per_person_php`"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "IN_RANGE(`year`, NULL, NULL)"
+                    }
+                  ],
+                  "disaggregated": true,
+                  "orders": [
+                    {
+                      "direction": "ASC",
+                      "expression": "`share_gap_pp`"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": false,
+                "title": {
+                  "value": "Population Share vs. Spending Share",
+                  "fields": []
+                }
+              },
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "region_code",
+                    "contentAlignment": "right",
+                    "headerAlignment": "right",
+                    "headerStyle": {
+                      "fontWeight": 700,
+                      "fontStyle": "normal",
+                      "fontSize": 16
+                    },
+                    "displayName": "Region",
+                    "style": {
+                      "type": "basic",
+                      "fontSize": 16,
+                      "fontWeight": 400,
+                      "fontStyle": "normal"
+                    }
+                  },
+                  {
+                    "fieldName": "spending_share_pct",
+                    "format": {
+                      "type": "number-plain",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "significantFigures": {
+                        "type": "exact",
+                        "figures": 3
+                      },
+                      "hideGroupSeparator": true
+                    },
+                    "contentAlignment": "right",
+                    "headerAlignment": "right",
+                    "headerStyle": {
+                      "fontSize": 16,
+                      "fontWeight": 700,
+                      "fontStyle": "normal"
+                    },
+                    "displayName": "Spending share (%)",
+                    "style": {
+                      "type": "basic",
+                      "fontSize": 16
+                    }
+                  },
+                  {
+                    "fieldName": "population_share_pct",
+                    "contentAlignment": "right",
+                    "headerAlignment": "right",
+                    "headerStyle": {
+                      "fontWeight": 700,
+                      "fontStyle": "normal",
+                      "fontSize": 16
+                    },
+                    "displayName": "Population share (%)",
+                    "style": {
+                      "type": "basic",
+                      "fontSize": 16
+                    }
+                  },
+                  {
+                    "fieldName": "share_gap_pp",
+                    "contentAlignment": "right",
+                    "headerAlignment": "right",
+                    "headerStyle": {
+                      "fontSize": 16,
+                      "fontWeight": 700,
+                      "fontStyle": "normal"
+                    },
+                    "displayName": "Share gap",
+                    "style": {
+                      "type": "basic",
+                      "fontSize": 16,
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "0"
+                            },
+                            "operator": ">"
+                          },
+                          "backgroundColor": {
+                            "themeColorType": "visualizationColors",
+                            "position": 7
+                          }
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "0"
+                            },
+                            "operator": "<"
+                          },
+                          "backgroundColor": {
+                            "themeColorType": "visualizationColors",
+                            "position": 8
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "spending_per_person_php",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "PHP",
+                      "abbreviation": "none",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 2
+                      },
+                      "hideGroupSeparator": false
+                    },
+                    "contentAlignment": "right",
+                    "headerAlignment": "right",
+                    "headerStyle": {
+                      "fontSize": 16,
+                      "fontWeight": 700,
+                      "fontStyle": "normal"
+                    },
+                    "displayName": "Spending per person",
+                    "style": {
+                      "type": "basic",
+                      "fontWeight": 400,
+                      "fontStyle": "normal",
+                      "fontSize": 16
+                    }
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column",
+                    "field": {
+                      "index": 3
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 14
+          }
+        },
+        {
+          "widget": {
+            "name": "year",
+            "queries": [
+              {
+                "name": "dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd0b16e9176d80922590b41837cc_year",
+                "query": {
+                  "datasetName": "35560c26",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "year_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Year",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "year",
+                    "queryName": "dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd0b16e9176d80922590b41837cc_year"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 0,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "2710b738",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size: 32px;font-weight: 700;\">Regional Population and Spending Alignment</span></span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 7,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "e09dd01a",
+      "displayName": "GRDP vs spending",
+      "layout": [
+        {
+          "widget": {
+            "name": "year",
+            "queries": [
+              {
+                "name": "dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c_year",
+                "query": {
+                  "datasetName": "d7bce2f1",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "year_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 14px;\">Year</span>",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "year",
+                    "queryName": "dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c_year"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "8576eec0",
+            "multilineTextboxSpec": {
+              "lines": [
+                "<span style=\"text-align:center;display:block\"><span style=\"font-size:32px\">Regional Economic Output vs. Government Spending per Capita</span></span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 8,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "a8d2870d",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d7bce2f1",
+                  "fields": [
+                    {
+                      "name": "quadrant",
+                      "expression": "`quadrant`"
+                    },
+                    {
+                      "name": "region_code",
+                      "expression": "`region_code`"
+                    },
+                    {
+                      "name": "region_name",
+                      "expression": "`region_name`"
+                    },
+                    {
+                      "name": "median_grdp",
+                      "expression": "`median_grdp`"
+                    },
+                    {
+                      "name": "median_obligations",
+                      "expression": "`median_obligations`"
+                    },
+                    {
+                      "name": "grdp_per_capita_php",
+                      "expression": "`grdp_per_capita_php`"
+                    },
+                    {
+                      "name": "obligations_per_resident_php",
+                      "expression": "`obligations_per_resident_php`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              },
+              {
+                "name": "annotation:dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c:median_obligations",
+                "query": {
+                  "datasetName": "d7bce2f1",
+                  "fields": [
+                    {
+                      "name": "median_obligations",
+                      "expression": "`median_obligations`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              },
+              {
+                "name": "annotation:dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c:median_grdp",
+                "query": {
+                  "datasetName": "d7bce2f1",
+                  "fields": [
+                    {
+                      "name": "median_grdp",
+                      "expression": "`median_grdp`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "annotations": [
+                {
+                  "type": "horizontal-line",
+                  "encodings": {
+                    "label": {
+                      "value": "Median Spending per Capita"
+                    },
+                    "type": "custom",
+                    "y": {
+                      "fieldName": "median_obligations"
+                    },
+                    "queryName": "annotation:dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c:median_obligations"
+                  }
+                },
+                {
+                  "type": "vertical-line",
+                  "encodings": {
+                    "label": {
+                      "value": "Median GRDP per Capita"
+                    },
+                    "type": "custom",
+                    "x": {
+                      "fieldName": "median_grdp"
+                    },
+                    "queryName": "annotation:dashboards/01f1cae90ab41086b489c9f86b6a38bb/datasets/01f1cd124d4c1538b0658817ca67513c:median_grdp"
+                  }
+                }
+              ],
+              "widgetType": "scatter",
+              "encodings": {
+                "x": {
+                  "fieldName": "grdp_per_capita_php",
+                  "axis": {
+                    "title": "GRDP per Capita (₱, Constant 2018 Prices)"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "obligations_per_resident_php",
+                  "axis": {
+                    "title": "Government Spending per Capita (₱)"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "quadrant",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "region_code"
+                  },
+                  {
+                    "fieldName": "region_name"
+                  },
+                  {
+                    "fieldName": "median_grdp"
+                  },
+                  {
+                    "fieldName": "median_obligations"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 8,
+            "height": 11
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
