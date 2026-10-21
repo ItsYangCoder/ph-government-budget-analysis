@@ -52,3 +52,7 @@ Offline parse and structural checks do not prove that queries run on your wareho
 ## Failure alerts and recovery
 
 See [Pipeline failures and recovery](../docs/ingestion.md#pipeline-failures-and-recovery) for email alerts, partial-write checks, and safe reruns.
+
+## DQ results
+
+Builds save model/test history to a monitoring schema derived from `gold_schema` (for example, `prod_gold` → `prod_monitoring`). Use `monitoring_schema` to override it. See [DQ history and dashboard queries](../data_quality/readme.md#dq-history-and-dashboard-queries) for permissions, views, and limitations.
