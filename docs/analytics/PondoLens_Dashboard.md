@@ -1,9 +1,24 @@
-# PondoLens Dashboard — Data Lineage
+# PondoLens Combined Dashboard — Data Lineage and Fixes
 
 ## Scope
 Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations relative to population, AP3 GRDP per capita relative to government obligations. The dashboard is a **definition**, not an exported data extract. Live data depends on the selected SQL warehouse, table access, and the presence of matching records.
 
 ## AP1 — Budget Distribution
+
+### Dashboard visualizations
+
+**Annual approved budget across departments**
+
+![Annual approved budget across departments](docs/analytics/AP1_annual_approved_budget_across_departments.png)
+
+**Annual regional approved budget**
+
+![Annual regional approved budget](docs/analytics/AP1_annual_regional_approved_budget.png)
+
+**Yearly department budget distribution**
+
+![Yearly department budget distribution](docs/analytics/AP1_yearly_department_budget_distribution.png)
+
 
 | Dashboard dataset | Source tables | Metric / use |
 |---|---|---|
@@ -14,6 +29,17 @@ Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations 
 **Interpretation:** AP1 is approved **appropriations**, not actual cash disbursements. Regional percentages may not sum to 100% because the denominator includes Nationwide and Central Office.
 
 ## AP2 — Obligations Compared with Population
+
+### Dashboard visualizations
+
+**Regional spending compared with population**
+
+![Regional spending compared with population](docs/analytics/AP2_regional_spending_population.png)
+
+**Regional spending share versus population share**
+
+![Regional spending share versus population share](docs/analytics/AP2_regional_spending_population_share.png)
+
 
 All AP2 widgets now calculate from Gold tables directly, with no dependency on the pre-existing `mv_population_spending_alignment` materialized view.
 
@@ -26,7 +52,7 @@ All AP2 widgets now calculate from Gold tables directly, with no dependency on t
 ### AP2 calculations
 
 - **Obligations:** `SUM(fact_regional_expenditure.obligation_amount)` for each region and year, excluding `dim_particular.category = 'UNKNOWN'` and null obligations.
-- **Population:** `SUM(fact_population.population_count)` by region and year, using age groups from `dim_age_group`. The exported dashboard excludes an interval containing a smaller interval. With the current non-overlapping Silver age groups, this retains the same age detail summed by the standalone AP2 query. All-age Total rows are excluded upstream.
+- **Population:** `SUM(fact_population.population_count)` by region and year, using age groups from `dim_age_group`. The query excludes an age interval when it contains a strictly smaller age interval, to reduce overlapping group double-counting. **Validate this logic against your age-group values before publishing.**
 - **Obligations per resident:** regional obligations / regional population.
 - **National benchmark:** sum of *matched regional* obligations / sum of *matched regional* population, by year. This is not necessarily the national government total.
 - **Population share (%):** region population / sum of matched regional population × 100.
@@ -38,14 +64,21 @@ All AP2 widgets now calculate from Gold tables directly, with no dependency on t
 
 ## AP3 — GRDP vs. Government Spending
 
+### Dashboard visualization
+
+**GRDP per capita versus government budget**
+
+![GRDP per capita versus government budget](docs/analytics/AP3_grdp_per_capita_budget.png)
+
+
 | Dashboard dataset | Source | Used for |
 |---|---|---|
 | `mv_grdp_spending_population_without_ncr` | `pondolens.dev_gold.mv_grdp_spending_population_without_ncr` | GRDP per capita vs. obligations per resident scatter plot and median quadrant guides |
 | `mv_grdp_spending_population` | `pondolens.dev_gold.mv_grdp_spending_population` | Included as an existing dataset; not used by the current AP3 scatter widget |
 
-AP3 chart columns: `year`, `region_code`, `region_name`, `grdp_per_capita_php`, `obligations_per_resident_php`, `median_grdp`, `median_obligations`, `quadrant`. The displayed chart excludes NCR by the explicit NCR filter in the setup SQL. GRDP per capita is labeled at constant 2018 prices. The checked-in [AP3 setup SQL](../analytics/q3_budget_and_indicators/budget_vs_grdp.sql) defines constant-2018-price GRDP, summed population age detail, and obligations excluding UNKNOWN category and null amounts. Run both CREATE VIEW statements after the Gold build. These are ordinary views, not materialized views.
+AP3 chart columns: `year`, `region_code`, `region_name`, `grdp_per_capita_php`, `obligations_per_resident_php`, `median_grdp`, `median_obligations`, `quadrant`. The displayed chart excludes NCR **by its materialized-view definition/name**; verify that the view actually does so. GRDP per capita is labeled at constant 2018 prices. **Inspect the underlying materialized-view SQL to verify the source indicator filtering, population calculation, and obligation exclusions.**
 
-## Export history
+## Changes in this version
 
 1. AP2 share table was changed from `pondolens.dev_gold.mv_population_spending_alignment` to a direct obligations-based SQL query using the same sources and year/region population matching as the AP2 benchmark charts.
 2. Added `population_share_pct`, `spending_share_pct`, `share_gap_pp`, `spending_per_person_php`, and `region_code` to the AP2 regional query.
@@ -78,7 +111,3 @@ GROUP BY year ORDER BY year;
 Open **Datasets** in the imported dashboard and preview `ap2_regions` and `AP2 Obligations and Population Share`. If both return zero rows, investigate region/year joins, overlapping age groups, missing population, or obligations data. If they return rows but the charts do not, check widget field mappings, year filters, and SQL warehouse permissions. Verify that each page's year filters select years that actually exist in its datasets.
 
 **Validation limitation:** The JSON structure was edited and parsed locally; queries could not be executed against your Databricks workspace. Therefore a successful import or nonempty chart cannot be guaranteed without live validation.
-
-## Setup and validation
-
-Run the Gold build, then [AP3 view setup](../analytics/q3_budget_and_indicators/budget_vs_grdp.sql), and import the dashboard export. Select the intended warehouse and preview every dataset. SQL parse checks and a successful dbt build do not establish successful dashboard execution. Use the [analytics guide](../analytics/readme.md) for standalone queries.
