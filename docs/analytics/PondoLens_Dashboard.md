@@ -5,6 +5,21 @@ Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations 
 
 ## AP1 — Budget Distribution
 
+### Dashboard visualizations
+
+**Annual approved budget across departments**
+
+![Annual approved budget across departments](docs/analytics/AP1_annual_approved_budget_across_departments.png)
+
+**Annual regional approved budget**
+
+![Annual regional approved budget](docs/analytics/AP1_annual_regional_approved_budget.png)
+
+**Yearly department budget distribution**
+
+![Yearly department budget distribution](docs/analytics/AP1_yearly_department_budget_distribution.png)
+
+
 | Dashboard dataset | Source tables | Metric / use |
 |---|---|---|
 | Budget_Overall | `pondolens.dev_gold.fact_regional_expenditure`, `dim_year`, `dim_location`, `dim_particular` | `appropriation_amount`; department/location filters, approved-budget charts and counters |
@@ -14,6 +29,17 @@ Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations 
 **Interpretation:** AP1 is approved **appropriations**, not actual cash disbursements. Regional percentages may not sum to 100% because the denominator includes Nationwide and Central Office.
 
 ## AP2 — Obligations Compared with Population
+
+### Dashboard visualizations
+
+**Regional spending compared with population**
+
+![Regional spending compared with population](docs/analytics/AP2_regional_spending_population.png)
+
+**Regional spending share versus population share**
+
+![Regional spending share versus population share](docs/analytics/AP2_regional_spending_population_share.png)
+
 
 All AP2 widgets now calculate from Gold tables directly, with no dependency on the pre-existing `mv_population_spending_alignment` materialized view.
 
@@ -37,6 +63,13 @@ All AP2 widgets now calculate from Gold tables directly, with no dependency on t
 **Data scope:** only region-year records with both population and obligations and positive population are included. Nationwide and Central Office allocations are excluded from AP2 because they cannot be reliably attributed to residents of a specific region. This exclusion is analytical, not evidence that those funds did not benefit regions.
 
 ## AP3 — GRDP vs. Government Spending
+
+### Dashboard visualization
+
+**GRDP per capita versus government budget**
+
+![GRDP per capita versus government budget](docs/analytics/AP3_grdp_per_capita_budget.png)
+
 
 | Dashboard dataset | Source | Used for |
 |---|---|---|
