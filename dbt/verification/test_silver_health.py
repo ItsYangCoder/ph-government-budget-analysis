@@ -242,3 +242,21 @@ def test_completion_snapshot_reproduces_availability_without_fixed_score(warehou
     assert rows['completion_rate', 'measurement_availability']['numerator'] == 658
     assert rows['completion_rate', 'measurement_availability']['denominator'] == 856
     assert rows['completion_rate', 'expected_key_coverage']['unresolved_rows'] == 1
+
+
+@pytest.mark.parametrize('dataset,measure', [('regional_appropriations', 'appropriation_amount'),
+                                           ('regional_obligations', 'expenditure_amount')])
+def test_budget_only_nationwide_code_is_not_an_invalid_region(warehouse, dataset, measure):
+    insert, metrics = warehouse
+    row = dict(year=2025, region_code='NW', region_name='NATIONWIDE', category='A', particular='B')
+    row[measure] = 0
+    if dataset == 'regional_obligations':
+        row['value_status'] = 'numeric'
+    insert(dataset, **row)
+    rows = metrics()
+    canonical = rows[dataset, 'canonical_code_membership']
+    assert canonical['denominator'] == 0 and canonical['excluded_rows'] == 1
+    assert canonical['invalid_rows'] == 0 and canonical['percentage'] is None
+    mapping = rows[dataset, 'year_mapping_applicability']
+    assert mapping['numerator'] == 1 and mapping['exception_rows'] == 1
+    assert mapping['percentage'] == 100 and mapping['invalid_rows'] == 0

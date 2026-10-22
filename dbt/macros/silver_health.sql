@@ -265,12 +265,16 @@ expected_regions AS (
 expected_years AS (SELECT EXPLODE(SEQUENCE(2021, 2025)) AS year)
 {% for d in definitions %}
 , {{ d.name }}_flags AS (
+    {% set local_code = "f.region_code='NW' AND f.year BETWEEN 2021 AND 2025" if d.name in ['regional_appropriations','regional_obligations'] else 'FALSE' %}
     SELECT f.*,
         STRUCT({% for k in d['keys'] %}f.`{{ k }}`{% if not loop.last %}, {% endif %}{% endfor %}) AS business_key,
         ({{ d.key_incomplete }}) AS key_incomplete,
         ({{ d.core_incomplete }}) AS core_incomplete,
         {{ d.measurement_state }} AS measurement_state,
         COALESCE(({{ d.value_valid }}), FALSE) AS value_valid,
+        COALESCE(({{ local_code }}), FALSE) AND NOT EXISTS (
+            SELECT 1 FROM {{ ref('shared_region_crosswalk') }} c
+            WHERE c.region_code=f.region_code) AS local_code_exception,
         (NULLIF(TRIM(f.region_code),'') IS NOT NULL AND EXISTS (
             SELECT 1 FROM {{ ref('shared_region_crosswalk') }} c
             WHERE c.region_code=f.region_code)) AS code_known,
@@ -279,9 +283,10 @@ expected_years AS (SELECT EXPLODE(SEQUENCE(2021, 2025)) AS year)
         {% else %}
         CASE
             WHEN NULLIF(TRIM(f.region_code),'') IS NULL THEN 'invalid'
+            WHEN f.year IS NULL THEN 'unresolved'
+            WHEN {{ local_code }} THEN 'approved_exception'
             WHEN NOT EXISTS (SELECT 1 FROM {{ ref('shared_region_crosswalk') }} c
                              WHERE c.region_code=f.region_code) THEN 'invalid'
-            WHEN f.year IS NULL THEN 'unresolved'
             WHEN EXISTS (SELECT 1 FROM {{ ref('shared_region_crosswalk') }} c
                          WHERE c.region_code=f.region_code
                            AND f.year BETWEEN COALESCE(c.valid_from_year,1900)
@@ -306,6 +311,7 @@ expected_years AS (SELECT EXPLODE(SEQUENCE(2021, 2025)) AS year)
         COALESCE(COUNT_IF(measurement_state='unclassified'), 0) AS unclassified_rows,
         COALESCE(COUNT_IF(measurement_state='available' AND value_valid), 0) AS valid_rows,
         COALESCE(COUNT_IF(code_known), 0) AS known_codes,
+        COALESCE(COUNT_IF(local_code_exception), 0) AS local_code_rows,
         COALESCE(COUNT_IF(mapping_state IN ('year_valid','approved_exception')), 0) AS mapped_rows,
         COALESCE(COUNT_IF(mapping_state='approved_exception'), 0) AS exception_rows,
         COALESCE(COUNT_IF(mapping_state='missing_placeholder'), 0) AS placeholder_rows,
@@ -374,13 +380,13 @@ UNION ALL
     excluded='observed_rows-available_rows', unresolved='unclassified_rows', invalid='available_rows-valid_rows') }}
 {% if d.name != 'shared_region_crosswalk' %}
 UNION ALL
-{{ silver_health_metric(d.name, 'canonical_code_membership', 'known_codes', 'observed_rows',
-    'Canonical code exists in shared crosswalk; EXISTS prevents alias multiplication. Does not prove year applicability, matched source names, or boundary comparability.', src,
-    invalid='observed_rows-known_codes') }}
+{{ silver_health_metric(d.name, 'canonical_code_membership', 'known_codes', 'observed_rows-local_code_rows',
+    'Code exists in shared crosswalk; EXISTS prevents alias multiplication. Budget NW codes approved only in the dataset mapping are excluded here and assessed under year mapping. Does not prove matched source names or boundary comparability.', src,
+    excluded='local_code_rows', invalid='observed_rows-known_codes-local_code_rows') }}
 {% if d.name != 'region_boundaries' %}
 UNION ALL
 {{ silver_health_metric(d.name, 'year_mapping_applicability', 'mapped_rows', 'observed_rows-placeholder_rows',
-    'Year-valid code or exact Silver-approved historical NIR exception. Completion missing-source placeholders outside validity are excluded. GRDP provenance is established by its Silver transformation, not independently rechecked here.', src,
+    'Year-valid code, exact Silver-approved historical NIR exception, or budget-only Nationwide (NW) mapping in 2021-2025. Completion missing-source placeholders outside validity are excluded. GRDP provenance is established by its Silver transformation, not independently rechecked here.', src,
     excluded='placeholder_rows', unresolved='unresolved_mapping_rows', invalid='invalid_mapping_rows') }}
 {% endif %}
 {% endif %}
