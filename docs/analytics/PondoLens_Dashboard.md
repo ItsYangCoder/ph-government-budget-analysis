@@ -3,21 +3,23 @@
 ## Scope
 Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations relative to population, AP3 GRDP per capita relative to government obligations. The dashboard is a **definition**, not an exported data extract. Live data depends on the selected SQL warehouse, table access, and the presence of matching records.
 
+[Dashboard export](../../dashboard/PondoLens_Dashboard.lvdash.json) · [Analytics SQL](../../analytics/readme.md)
+
 ## AP1 — Budget Distribution
 
 ### Dashboard visualizations
 
 **Annual approved budget across departments**
 
-![Annual approved budget across departments](docs/analytics/AP1_annual_approved_budget_across_departments.png)
+![Annual approved budget across departments](AP1_annual_approved_budget_across_departments.png)
 
 **Annual regional approved budget**
 
-![Annual regional approved budget](docs/analytics/AP1_annual_regional_approved_budget.png)
+![Annual regional approved budget](AP1_annual_regional_approved_budget.png)
 
 **Yearly department budget distribution**
 
-![Yearly department budget distribution](docs/analytics/AP1_yearly_department_budget_distribution.png)
+![Yearly department budget distribution](AP1_yearly_department_budget_distribution.png)
 
 
 | Dashboard dataset | Source tables | Metric / use |
@@ -34,11 +36,11 @@ Three Databricks AI/BI dashboard tabs: AP1 budget distribution, AP2 obligations 
 
 **Regional spending compared with population**
 
-![Regional spending compared with population](docs/analytics/AP2_regional_spending_population.png)
+![Regional spending compared with population](AP2_regional_spending_population.png)
 
 **Regional spending share versus population share**
 
-![Regional spending share versus population share](docs/analytics/AP2_regional_spending_population_share.png)
+![Regional spending share versus population share](AP2_regional_spending_population_share.png)
 
 
 All AP2 widgets now calculate from Gold tables directly, with no dependency on the pre-existing `mv_population_spending_alignment` materialized view.
@@ -68,7 +70,7 @@ All AP2 widgets now calculate from Gold tables directly, with no dependency on t
 
 **GRDP per capita versus government budget**
 
-![GRDP per capita versus government budget](docs/analytics/AP3_grdp_per_capita_budget.png)
+![GRDP per capita versus government budget](AP3_grdp_per_capita_budget.png)
 
 
 | Dashboard dataset | Source | Used for |
