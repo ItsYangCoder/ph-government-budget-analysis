@@ -19,4 +19,4 @@ Setup:
 
 Appropriations are budget allocations; obligations are commitments, not cash payments. Use the same year and region coverage when comparing measures. Sum non-overlapping population age groups once per region-year before joining to budget data. Keep GRDP price bases separate.
 
-See [AP2 definitions](../docs/analytics/AP2_population_vs_spending_gap.md), [AP3 definitions](../docs/analytics/AP3_grdp_vs_obligations_scatter.md), and [dashboard setup](../dashboard/PondoLens_Dashboard.md).
+See [AP2 definitions](../docs/analytics/PondoLens_Dashboard.md#ap2-calculations), [AP3 definitions](../docs/analytics/PondoLens_Dashboard.md#ap3--grdp-vs-government-spending), and [dashboard setup](../docs/analytics/PondoLens_Dashboard.md).

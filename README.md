@@ -3,7 +3,7 @@ PondoLens is an end-to-end data engineering capstone from the **FTW Foundation D
 
 The main reporting scope is **2021–2025**. Coverage varies by dataset.
 
-[Why Databricks](#why-databricks) · [Data process](#how-the-data-moves) · [Quick start](#quick-start) · [Documentation](#documentation) · [Silver guides](#silver-documentation) · [Dashboard](dashboard/PondoLens_Dashboard.md) · [Team](#team)
+[Why Databricks](#why-databricks) · [Data process](#how-the-data-moves) · [Quick start](#quick-start) · [Documentation](#documentation) · [Silver guides](#silver-documentation) · [Dashboard](docs/analytics/PondoLens_Dashboard.md) · [Team](#team)
 
 ## What we explore
 
@@ -103,7 +103,7 @@ Click a guide below to open it in this repository. Each guide explains one part 
 | [Data model](docs/data_model.md) | What each Gold table represents and how table keys connect budgets, population, and indicators. | Plan a query or understand which tables to join. |
 | [Silver YAML](dbt/models/silver/schema.yml) · [Gold YAML](dbt/models/gold/schema.yml) | dbt configuration files containing column descriptions and automated data tests. GitHub displays these as code. | Check column definitions or review the tests attached to a model. |
 | [Analytics](analytics/readme.md) | SQL queries and setup steps for the three analytical questions. | Calculate the reporting measures after building Gold. |
-| [Dashboard](dashboard/PondoLens_Dashboard.md) | Chart definitions, data sources, calculations, and setup for the Databricks dashboard export. | Set up the dashboard or trace a chart back to its data. |
+| [Dashboard](docs/analytics/PondoLens_Dashboard.md) | Chart definitions, data sources, calculations, and setup for the Databricks dashboard export. | Set up the dashboard or trace a chart back to its data. |
 | [Data quality](data_quality/readme.md) | Additional checks that complement the tests inside dbt. | Investigate values or run targeted dataset checks. |
 | [Migration notes](dbt/MIGRATION.md) | How the original SQL was adapted into dbt and how the scripts execute. | Review transformation changes and execution safeguards. |
 
