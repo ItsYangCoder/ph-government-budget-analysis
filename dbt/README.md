@@ -56,3 +56,5 @@ See [Pipeline failures and recovery](../docs/ingestion.md#pipeline-failures-and-
 ## DQ results
 
 Builds save model/test history to a monitoring schema derived from `gold_schema` (for example, `prod_gold` → `prod_monitoring`). Use `monitoring_schema` to override it. See [DQ history and dashboard queries](../data_quality/readme.md#dq-history-and-dashboard-queries) for permissions, views, and limitations.
+
+A full build also creates the live `dq_silver_health` view for all 11 Silver datasets. See [Silver health metrics](../data_quality/readme.md#silver-health-metrics) for rules, coverage scopes, and the dashboard query. This is separate from recorded test outcomes.
