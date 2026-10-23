@@ -362,6 +362,80 @@
           }
         ]
       }
+    },
+    {
+      "name": "3acbf4df",
+      "displayName": "analytics_dpwh_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_dpwh_regional_budget",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
+    },
+    {
+      "name": "14c15e27",
+      "displayName": "analytics_dnd_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_dnd_regional_budget"
+      }
+    },
+    {
+      "name": "9932cf13",
+      "displayName": "analytics_dilg_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_dilg_regional_budget"
+      }
+    },
+    {
+      "name": "a1968d27",
+      "displayName": "analytics_doh_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_doh_regional_budget"
+      }
+    },
+    {
+      "name": "f6d8d481",
+      "displayName": "analytics_dswd_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_dswd_regional_budget"
+      }
+    },
+    {
+      "name": "53db3458",
+      "displayName": "analytics_deped_regional_budget",
+      "config": {
+        "version": "1.1",
+        "source": "pondolens.dev_gold.analytics_deped_regional_budget",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
     }
   ],
   "pages": [
@@ -1177,6 +1251,36 @@
             "y": 0,
             "width": 2,
             "height": 3
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "c8dc2de4",
+      "displayName": "Highest Budgeted Department",
+      "layout": [
+        {
+          "widget": {
+            "name": "2d6d8239",
+            "spec": {
+              "frame": {
+                "showTitle": true
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {},
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 9,
+            "height": 9
           }
         }
       ],
