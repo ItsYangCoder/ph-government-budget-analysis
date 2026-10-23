@@ -1,0 +1,32 @@
+CREATE OR REPLACE VIEW pondolens.dev_gold.analytics_doh_regional_budget AS
+WITH doh_regional AS (
+  SELECT
+    dy.year,
+    dl.location AS region,
+    SUM(fe.appropriation_amount) AS total_appropriation_php,
+    SUM(fe.obligation_amount)    AS total_obligation_php
+  FROM pondolens.dev_gold.fact_regional_expenditure fe
+  JOIN pondolens.dev_gold.dim_particular dp
+    ON fe.particular_id = dp.particular_id
+  JOIN pondolens.dev_gold.dim_location dl
+    ON fe.location_id = dl.location_id
+  JOIN pondolens.dev_gold.dim_year dy
+    ON fe.year_id = dy.year_id
+  WHERE dp.particular = 'DEPARTMENT OF HEALTH (DOH)'
+    AND dl.geographic_level = 'region'
+    AND fe.appropriation_amount IS NOT NULL
+    AND fe.obligation_amount IS NOT NULL
+  GROUP BY dy.year, dl.location
+)
+SELECT
+  year,
+  region,
+  total_appropriation_php,
+  total_obligation_php,
+  -- Budget rankings are based on total_obligation_php (descending)
+  RANK() OVER (
+    PARTITION BY year
+    ORDER BY total_obligation_php DESC
+  ) AS budget_rank
+FROM doh_regional
+ORDER BY year, budget_rank;
